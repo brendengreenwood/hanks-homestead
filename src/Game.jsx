@@ -666,6 +666,7 @@ export default function IsometricFarmGame() {
     notification: null,
     notificationTimeout: null,
     showShop: false,
+    showSellModal: false,
   });
   
   // UI state
@@ -906,7 +907,7 @@ export default function IsometricFarmGame() {
     } else if (currentSeason === 'fall' && nextSeason === 'winter') {
       sounds.sleep();
       setTimeout(() => sounds.wake(), 500);
-      showNotification('Winter has arrived! Sell your harvest!', 'success');
+      gs.showSellModal = true;
     } else if (currentSeason === 'winter' && nextSeason === 'spring') {
       for (let y = 0; y < WORLD_SIZE; y++) {
         for (let x = 0; x < WORLD_SIZE; x++) {
@@ -963,6 +964,7 @@ export default function IsometricFarmGame() {
     gs.pendingActionQueue = [];
     gs.pendingActionType = null;
     gs.showShop = false;
+    gs.showSellModal = false;
     showNotification('Game reset! Spring has arrived.', 'info');
     requestRender();
   };
@@ -998,6 +1000,74 @@ export default function IsometricFarmGame() {
         ctx.fillText(`${currentSeasonData.icon} ${currentSeasonData.name}`, btn.x + btn.w/2, btn.y + btn.h/2);
       },
       onClick: null,
+    });
+
+    // INVENTORY PANEL (left side, vertically centered) - shows all crops
+    const allCrops = Object.entries(CROPS).map(([cropId, crop]) => ({
+      cropId, crop, count: gs.inventory[cropId] || 0
+    }));
+    const totalHarvested = allCrops.reduce((sum, c) => sum + c.count, 0);
+
+    const invItemSize = 44;
+    const invPadding = 10;
+    const invGap = 6;
+    const invWidth = invItemSize + invPadding * 2;
+    const invHeight = allCrops.length * (invItemSize + invGap) - invGap + invPadding * 2 + 24;
+    const invX = 10;
+    const invY = (CANVAS_HEIGHT - invHeight) / 2;
+
+    buttons.push({
+      id: 'inventory_panel',
+      x: invX, y: invY, w: invWidth, h: invHeight,
+      render: (ctx) => {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+        drawRoundedRect(ctx, invX, invY, invWidth, invHeight, 8);
+        ctx.fill();
+        ctx.strokeStyle = '#A78BFA';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.fillStyle = '#E9D5FF';
+        ctx.font = 'bold 10px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(`🎒 ${totalHarvested}`, invX + invWidth / 2, invY + 14);
+      },
+      onClick: null,
+    });
+
+    allCrops.forEach((item, i) => {
+      const itemX = invX + invPadding;
+      const itemY = invY + invPadding + 20 + i * (invItemSize + invGap);
+      const hasItems = item.count > 0;
+
+      buttons.push({
+        id: `inv_${item.cropId}`,
+        x: itemX, y: itemY, w: invItemSize, h: invItemSize,
+        render: (ctx, btn, hovered) => {
+          drawRoundedRect(ctx, btn.x, btn.y, btn.w, btn.h, 4);
+          ctx.fillStyle = hasItems
+            ? (hovered ? 'rgba(167, 139, 250, 0.3)' : 'rgba(40, 40, 40, 0.9)')
+            : 'rgba(20, 20, 20, 0.7)';
+          ctx.fill();
+          ctx.strokeStyle = hasItems
+            ? (hovered ? '#A78BFA' : 'rgba(100, 100, 100, 0.5)')
+            : 'rgba(60, 60, 60, 0.3)';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+
+          ctx.globalAlpha = hasItems ? 1 : 0.3;
+          ctx.font = '20px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(item.crop.icon, btn.x + btn.w / 2, btn.y + btn.h / 2 - 5);
+
+          ctx.fillStyle = hasItems ? 'white' : '#666';
+          ctx.font = 'bold 11px sans-serif';
+          ctx.fillText(`${item.count}`, btn.x + btn.w / 2, btn.y + btn.h - 8);
+          ctx.globalAlpha = 1;
+        },
+        onClick: null,
+      });
     });
 
     // ACTION BAR - Shows current season's actions only
@@ -1458,31 +1528,72 @@ export default function IsometricFarmGame() {
       }
     }
     
-    // Sleep button - advance to next season
+    // Next Turn button - Civ 6 style large button (bottom right)
+    const nextBtnSize = 90;
+    const nextBtnX = CANVAS_WIDTH - nextBtnSize - 20;
+    const nextBtnY = CANVAS_HEIGHT - nextBtnSize - 20;
+
     buttons.push({
       id: 'sleep',
-      x: CANVAS_WIDTH - 110, y: bottomY, w: 70, h: 30,
+      x: nextBtnX, y: nextBtnY, w: nextBtnSize, h: nextBtnSize,
       render: (ctx, btn, hovered) => {
-        drawRoundedRect(ctx, btn.x, btn.y, btn.w, btn.h, 4);
-        ctx.fillStyle = hovered ? currentSeasonData.ui.secondary : currentSeasonData.ui.primary;
+        const cx = btn.x + btn.w / 2;
+        const cy = btn.y + btn.h / 2;
+        const radius = btn.w / 2;
+
+        // Outer glow on hover
+        if (hovered) {
+          ctx.beginPath();
+          ctx.arc(cx, cy, radius + 6, 0, Math.PI * 2);
+          ctx.fillStyle = `${currentSeasonData.ui.primary}44`;
+          ctx.fill();
+        }
+
+        // Shadow
+        ctx.beginPath();
+        ctx.arc(cx + 3, cy + 3, radius, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
         ctx.fill();
-        ctx.strokeStyle = currentSeasonData.ui.border;
-        ctx.lineWidth = 1;
+
+        // Main button circle
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+        const gradient = ctx.createRadialGradient(cx - 15, cy - 15, 0, cx, cy, radius);
+        gradient.addColorStop(0, hovered ? currentSeasonData.ui.primary : currentSeasonData.ui.secondary);
+        gradient.addColorStop(1, currentSeasonData.ui.border);
+        ctx.fillStyle = gradient;
+        ctx.fill();
+
+        // Border
+        ctx.strokeStyle = hovered ? 'white' : currentSeasonData.ui.primary;
+        ctx.lineWidth = 3;
         ctx.stroke();
 
+        // Inner circle accent
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius - 8, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Arrow icon
         ctx.fillStyle = 'white';
-        ctx.font = 'bold 11px sans-serif';
+        ctx.font = 'bold 28px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('Next →', btn.x + btn.w/2, btn.y + btn.h/2);
+        ctx.fillText('→', cx + 2, cy - 2);
+
+        // "NEXT" text
+        ctx.font = 'bold 12px sans-serif';
+        ctx.fillText('NEXT', cx, cy + 20);
       },
       onClick: advanceDay,
     });
-    
+
     // Reset button
     buttons.push({
       id: 'reset',
-      x: CANVAS_WIDTH - 35, y: bottomY, w: 25, h: 30,
+      x: CANVAS_WIDTH - 35, y: 10, w: 25, h: 25,
       render: (ctx, btn, hovered) => {
         drawRoundedRect(ctx, btn.x, btn.y, btn.w, btn.h, 4);
         ctx.fillStyle = hovered ? '#E5E7EB' : '#F3F4F6';
@@ -1499,7 +1610,189 @@ export default function IsometricFarmGame() {
       },
       onClick: resetGame,
     });
-    
+
+    // SELL MODAL - appears when transitioning from Fall to Winter
+    if (gs.showSellModal) {
+      const modalW = 400;
+      const modalH = 380;
+      const modalX = (CANVAS_WIDTH - modalW) / 2;
+      const modalY = (CANVAS_HEIGHT - modalH) / 2;
+
+      const allCropsForSale = Object.entries(CROPS).map(([cropId, crop]) => ({
+        cropId, crop, count: gs.inventory[cropId] || 0
+      }));
+      const totalValue = allCropsForSale.reduce((sum, c) => sum + c.count * c.crop.sellPrice, 0);
+      const totalItems = allCropsForSale.reduce((sum, c) => sum + c.count, 0);
+
+      // Backdrop
+      buttons.push({
+        id: 'sell_modal_backdrop',
+        x: 0, y: 0, w: CANVAS_WIDTH, h: CANVAS_HEIGHT,
+        render: (ctx) => {
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+          ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        },
+        onClick: null,
+      });
+
+      // Modal panel
+      buttons.push({
+        id: 'sell_modal_panel',
+        x: modalX, y: modalY, w: modalW, h: modalH,
+        render: (ctx) => {
+          // Shadow
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+          drawRoundedRect(ctx, modalX + 4, modalY + 4, modalW, modalH, 12);
+          ctx.fill();
+
+          // Panel
+          ctx.fillStyle = '#1a1a2e';
+          drawRoundedRect(ctx, modalX, modalY, modalW, modalH, 12);
+          ctx.fill();
+          ctx.strokeStyle = SEASONS.winter.ui.primary;
+          ctx.lineWidth = 3;
+          ctx.stroke();
+
+          // Header
+          ctx.fillStyle = SEASONS.winter.ui.primary;
+          ctx.font = 'bold 18px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('❄️ Winter Market ❄️', modalX + modalW / 2, modalY + 30);
+
+          // Subtitle
+          ctx.fillStyle = '#aaa';
+          ctx.font = '12px sans-serif';
+          ctx.fillText('Sell your harvest before spring!', modalX + modalW / 2, modalY + 50);
+
+          // Total value display
+          ctx.fillStyle = '#1e293b';
+          drawRoundedRect(ctx, modalX + 20, modalY + modalH - 100, modalW - 40, 40, 6);
+          ctx.fill();
+
+          ctx.fillStyle = '#94a3b8';
+          ctx.font = '12px sans-serif';
+          ctx.textAlign = 'left';
+          ctx.fillText(`${totalItems} items to sell`, modalX + 30, modalY + modalH - 78);
+
+          ctx.fillStyle = COLORS.ui.gold;
+          ctx.font = 'bold 16px sans-serif';
+          ctx.textAlign = 'right';
+          ctx.fillText(`Total: ${totalValue}g`, modalX + modalW - 30, modalY + modalH - 75);
+        },
+        onClick: null,
+      });
+
+      // Crop sell rows
+      const rowH = 44;
+      const rowStartY = modalY + 70;
+      allCropsForSale.forEach((item, i) => {
+        const rowY = rowStartY + i * (rowH + 6);
+        const hasItems = item.count > 0;
+
+        buttons.push({
+          id: `sell_modal_row_${item.cropId}`,
+          x: modalX + 20, y: rowY, w: modalW - 40, h: rowH,
+          render: (ctx, btn, hovered) => {
+            drawRoundedRect(ctx, btn.x, btn.y, btn.w, btn.h, 6);
+            ctx.fillStyle = hasItems
+              ? (hovered ? 'rgba(59, 130, 246, 0.2)' : 'rgba(30, 41, 59, 0.8)')
+              : 'rgba(20, 20, 30, 0.5)';
+            ctx.fill();
+            ctx.strokeStyle = hasItems ? 'rgba(100, 116, 139, 0.5)' : 'rgba(50, 50, 60, 0.3)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // Crop icon and name
+            ctx.globalAlpha = hasItems ? 1 : 0.4;
+            ctx.font = '20px sans-serif';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(item.crop.icon, btn.x + 12, btn.y + btn.h / 2);
+
+            ctx.fillStyle = hasItems ? 'white' : '#666';
+            ctx.font = '13px sans-serif';
+            ctx.fillText(item.crop.name, btn.x + 42, btn.y + btn.h / 2);
+
+            // Count
+            ctx.fillStyle = hasItems ? '#94a3b8' : '#444';
+            ctx.font = '12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(`×${item.count}`, btn.x + 140, btn.y + btn.h / 2);
+
+            // Price per unit
+            ctx.fillStyle = hasItems ? COLORS.ui.gold : '#555';
+            ctx.font = '11px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(`${item.crop.sellPrice}g each`, btn.x + 210, btn.y + btn.h / 2);
+
+            // Total for this crop
+            const cropTotal = item.count * item.crop.sellPrice;
+            ctx.fillStyle = hasItems ? '#22c55e' : '#444';
+            ctx.font = 'bold 13px sans-serif';
+            ctx.textAlign = 'right';
+            ctx.fillText(`${cropTotal}g`, btn.x + btn.w - 12, btn.y + btn.h / 2);
+
+            ctx.globalAlpha = 1;
+          },
+          onClick: hasItems ? () => {
+            gs.gold += item.count * item.crop.sellPrice;
+            gs.inventory[item.cropId] = 0;
+            sounds.sell();
+            requestRender();
+          } : null,
+        });
+      });
+
+      // Sell All button
+      buttons.push({
+        id: 'sell_modal_sell_all',
+        x: modalX + 20, y: modalY + modalH - 50, w: (modalW - 50) / 2, h: 36,
+        render: (ctx, btn, hovered) => {
+          drawRoundedRect(ctx, btn.x, btn.y, btn.w, btn.h, 6);
+          ctx.fillStyle = totalItems > 0
+            ? (hovered ? '#22c55e' : '#16a34a')
+            : '#374151';
+          ctx.fill();
+
+          ctx.fillStyle = totalItems > 0 ? 'white' : '#666';
+          ctx.font = 'bold 13px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(`💰 Sell All (${totalValue}g)`, btn.x + btn.w / 2, btn.y + btn.h / 2);
+        },
+        onClick: totalItems > 0 ? () => {
+          allCropsForSale.forEach(item => {
+            gs.gold += item.count * item.crop.sellPrice;
+            gs.inventory[item.cropId] = 0;
+          });
+          sounds.sell();
+          requestRender();
+        } : null,
+      });
+
+      // Continue button
+      buttons.push({
+        id: 'sell_modal_continue',
+        x: modalX + modalW / 2 + 5, y: modalY + modalH - 50, w: (modalW - 50) / 2, h: 36,
+        render: (ctx, btn, hovered) => {
+          drawRoundedRect(ctx, btn.x, btn.y, btn.w, btn.h, 6);
+          ctx.fillStyle = hovered ? SEASONS.winter.ui.secondary : SEASONS.winter.ui.primary;
+          ctx.fill();
+
+          ctx.fillStyle = 'white';
+          ctx.font = 'bold 13px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('Continue →', btn.x + btn.w / 2, btn.y + btn.h / 2);
+        },
+        onClick: () => {
+          gs.showSellModal = false;
+          showNotification('Winter has arrived!', 'success');
+          requestRender();
+        },
+      });
+    }
+
     return buttons;
   };
   
@@ -2046,7 +2339,7 @@ export default function IsometricFarmGame() {
       const tile = fromIso(x, y, gs.zoom, gs.cameraX, gs.cameraY, CANVAS_WIDTH, CANVAS_HEIGHT);
       const clickSeason = SEASON_ORDER[(gs.day - 1) % 4];
       if (tile.x >= 0 && tile.x < WORLD_SIZE && tile.y >= 0 && tile.y < WORLD_SIZE) {
-        if ((clickSeason === 'spring' || clickSeason === 'summer') && isFarmland(tile.x, tile.y)) {
+        if ((clickSeason === 'spring' || clickSeason === 'summer' || clickSeason === 'fall') && isFarmland(tile.x, tile.y)) {
           gs.isDragging = true;
           gs.selectionStart = tile;
           gs.selectionEnd = tile;
@@ -2072,7 +2365,7 @@ export default function IsometricFarmGame() {
     gs.isDragging = false;
 
     const mouseUpSeason = SEASON_ORDER[(gs.day - 1) % 4];
-    if (mouseUpSeason !== 'spring' && mouseUpSeason !== 'summer') {
+    if (mouseUpSeason !== 'spring' && mouseUpSeason !== 'summer' && mouseUpSeason !== 'fall') {
       gs.selectionStart = null;
       gs.selectionEnd = null;
       requestRender();
@@ -2339,6 +2632,21 @@ export default function IsometricFarmGame() {
             gs.grid[next.y][next.x].fed = true;
             sounds.water();
           }
+        } else if (actionType === 'harvest') {
+          if (cell.crop) {
+            const cropData = CROPS[cell.crop];
+            if (cell.growth >= cropData.growTime) {
+              let harvestAmount = 1;
+              if (cell.harvestPenalty) {
+                harvestAmount = 1;
+              } else if (cell.fed) {
+                harvestAmount = 2;
+              }
+              gs.inventory[cell.crop] = (gs.inventory[cell.crop] || 0) + harvestAmount;
+              gs.grid[next.y][next.x] = { crop: null, growth: 0, watered: false, fed: false, harvestPenalty: false };
+              sounds.harvest();
+            }
+          }
         }
 
         gs.autoActionQueue = rest;
@@ -2349,7 +2657,7 @@ export default function IsometricFarmGame() {
         if (rest.length === 0) {
           gs.isAutoActing = false;
           gs.pendingActionType = null;
-          const actionNames = { plant: 'Planting', water: 'Watering', clean: 'Feeding' };
+          const actionNames = { plant: 'Planting', water: 'Watering', clean: 'Feeding', harvest: 'Harvesting' };
           showNotification(`${actionNames[actionType] || 'Action'} complete!`, 'success');
         }
       }, 150);
