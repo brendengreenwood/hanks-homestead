@@ -1,3 +1,9 @@
 node_modules
 dist
 .DS_Store
+
+# Local Netlify folder
+.netlify
+
+# Source audio files (originals from Splice)
+/music/
