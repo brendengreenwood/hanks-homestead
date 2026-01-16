@@ -433,7 +433,28 @@ export default function IsometricFarmGame() {
     }, duration);
     requestRender();
   };
-  
+
+  const handleOutOfSeeds = () => {
+    const currentCrop = CROPS[gs.selectedCrop];
+
+    const seedCounts = Object.entries(CROPS).map(([cropId, crop]) => ({
+      cropId,
+      crop,
+      count: gs.inventory[`${cropId}_seeds`] || 0
+    })).filter(s => s.count > 0).sort((a, b) => b.count - a.count);
+
+    if (seedCounts.length === 0) {
+      showSpeech("All out of seeds... time for bed?", 3000);
+      showNotification("No seeds left! End turn to advance.", 'info');
+    } else {
+      const best = seedCounts[0];
+      showSpeech(`Out of ${currentCrop.icon} ${currentCrop.name} seeds! Try ${best.crop.icon} ${best.crop.name}?`, 2500);
+      gs.selectedCrop = best.cropId;
+    }
+    sounds.error();
+    requestRender();
+  };
+
   const isFarmland = (x, y) => x >= FIELD_OFFSET && x < FIELD_OFFSET + FIELD_SIZE &&
                                y >= FIELD_OFFSET && y < FIELD_OFFSET + FIELD_SIZE;
 
@@ -523,10 +544,9 @@ export default function IsometricFarmGame() {
         gs.inventory[seedKey]--;
         gs.grid[y][x] = { crop: gs.selectedCrop, growth: 0, watered: false, fed: false };
         sounds.plant();
-        showNotification(`Planted ${CROPS[gs.selectedCrop].name}!`, 'success');
+        showNotification(`Planted ${CROPS[gs.selectedCrop].icon} ${CROPS[gs.selectedCrop].name}!`, 'success');
       } else {
-        sounds.error();
-        showSpeech(`Out of ${CROPS[gs.selectedCrop].name} seeds!`);
+        handleOutOfSeeds();
       }
     } else if (gs.selectedAction === 'water' && cell.crop && !cell.watered) {
       if (season !== 'summer') {
@@ -561,7 +581,7 @@ export default function IsometricFarmGame() {
         gs.grid[y][x] = { crop: null, growth: 0, watered: false, fed: false };
         sounds.harvest();
         const bonusText = bonus > 1 ? ` (+${bonus - 1} bonus!)` : '';
-        showNotification(`Harvested ${cropData.name}!${bonusText}`, 'success');
+        showNotification(`Harvested ${cropData.icon} ${cropData.name}!${bonusText}`, 'success');
       } else {
         sounds.error();
         showNotification('Not ready yet!', 'error');
@@ -618,7 +638,7 @@ export default function IsometricFarmGame() {
       gs.inventory[item]--;
       gs.gold += CROPS[item].sellPrice;
       sounds.sell();
-      showNotification(`Sold ${CROPS[item].name} for ${CROPS[item].sellPrice}g!`, 'success');
+      showNotification(`Sold ${CROPS[item].icon} ${CROPS[item].name} for ${CROPS[item].sellPrice}g!`, 'success');
       requestRender();
     }
   };
@@ -668,6 +688,10 @@ export default function IsometricFarmGame() {
 
     if (!CANVAS_WIDTH || !CANVAS_HEIGHT) return [];
 
+    // Compute season fresh from current game state (avoid stale closures)
+    const currentSeason = SEASON_ORDER[(gs.day - 1) % 4];
+    const currentSeasonData = SEASONS[currentSeason];
+
     const buttons = [];
 
     // Season indicator (top left) - shows current turn/season
@@ -676,19 +700,19 @@ export default function IsometricFarmGame() {
       x: 10, y: 10, w: 80, h: 28,
       render: (ctx, btn) => {
         drawRoundedRect(ctx, btn.x, btn.y, btn.w, btn.h, 4);
-        ctx.fillStyle = seasonData.ui.primary;
+        ctx.fillStyle = currentSeasonData.ui.primary;
         ctx.fill();
         ctx.fillStyle = 'white';
         ctx.font = 'bold 11px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(`${seasonData.icon} ${seasonData.name}`, btn.x + btn.w/2, btn.y + btn.h/2);
+        ctx.fillText(`${currentSeasonData.icon} ${currentSeasonData.name}`, btn.x + btn.w/2, btn.y + btn.h/2);
       },
       onClick: null,
     });
 
     // ACTION BAR - Shows current season's actions only
-    const currentActions = SEASON_ACTIONS[season];
+    const currentActions = SEASON_ACTIONS[currentSeason];
     const actionSize = 56;
     const actionGap = 8;
     const actionBarY = CANVAS_HEIGHT - 90;
@@ -706,7 +730,7 @@ export default function IsometricFarmGame() {
         ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
         drawRoundedRect(ctx, panelX, panelY, panelWidth, panelHeight, 8);
         ctx.fill();
-        ctx.strokeStyle = seasonData.ui.primary;
+        ctx.strokeStyle = currentSeasonData.ui.primary;
         ctx.lineWidth = 3;
         ctx.stroke();
       },
@@ -728,7 +752,7 @@ export default function IsometricFarmGame() {
           drawRoundedRect(ctx, btn.x, btn.y, btn.w, btn.h, 6);
 
           if (isActive) {
-            ctx.fillStyle = seasonData.ui.bg;
+            ctx.fillStyle = currentSeasonData.ui.bg;
           } else if (hovered) {
             ctx.fillStyle = 'rgba(60, 60, 60, 0.9)';
           } else {
@@ -736,7 +760,7 @@ export default function IsometricFarmGame() {
           }
           ctx.fill();
 
-          ctx.strokeStyle = isActive ? seasonData.ui.primary :
+          ctx.strokeStyle = isActive ? currentSeasonData.ui.primary :
                            (hovered ? 'rgba(200, 200, 200, 0.8)' : 'rgba(120, 120, 120, 0.5)');
           ctx.lineWidth = isActive ? 3 : 2;
           ctx.stroke();
@@ -843,7 +867,8 @@ export default function IsometricFarmGame() {
 
             if (hovered) {
               ctx.font = 'bold 9px sans-serif';
-              const textWidth = ctx.measureText(crop.name).width;
+              const tooltipText = `${crop.icon} ${crop.name}`;
+              const textWidth = ctx.measureText(tooltipText).width;
               const tooltipX = btn.x + btn.w/2 - textWidth/2 - 5;
               const tooltipY = btn.y - 20;
               drawRoundedRect(ctx, tooltipX, tooltipY, textWidth + 10, 16, 4);
@@ -852,7 +877,7 @@ export default function IsometricFarmGame() {
               ctx.fillStyle = 'white';
               ctx.textAlign = 'center';
               ctx.textBaseline = 'middle';
-              ctx.fillText(crop.name, btn.x + btn.w/2, tooltipY + 8);
+              ctx.fillText(tooltipText, btn.x + btn.w/2, tooltipY + 8);
             }
           },
           onClick: () => { gs.selectedCrop = cropId; requestRender(); },
@@ -1145,17 +1170,14 @@ export default function IsometricFarmGame() {
     }
     
     // Sleep button - advance to next season
-    const nextSeasonIndex = SEASON_ORDER.indexOf(season) + 1;
-    const nextSeasonKey = SEASON_ORDER[nextSeasonIndex % 4];
-    const nextSeasonData = SEASONS[nextSeasonKey];
     buttons.push({
       id: 'sleep',
-      x: CANVAS_WIDTH - 130, y: bottomY, w: 90, h: 30,
+      x: CANVAS_WIDTH - 110, y: bottomY, w: 70, h: 30,
       render: (ctx, btn, hovered) => {
         drawRoundedRect(ctx, btn.x, btn.y, btn.w, btn.h, 4);
-        ctx.fillStyle = hovered ? nextSeasonData.ui.secondary : nextSeasonData.ui.primary;
+        ctx.fillStyle = hovered ? currentSeasonData.ui.secondary : currentSeasonData.ui.primary;
         ctx.fill();
-        ctx.strokeStyle = nextSeasonData.ui.border;
+        ctx.strokeStyle = currentSeasonData.ui.border;
         ctx.lineWidth = 1;
         ctx.stroke();
 
@@ -1163,7 +1185,7 @@ export default function IsometricFarmGame() {
         ctx.font = 'bold 11px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(`→ ${nextSeasonData.icon} ${nextSeasonData.name}`, btn.x + btn.w/2, btn.y + btn.h/2);
+        ctx.fillText('Next →', btn.x + btn.w/2, btn.y + btn.h/2);
       },
       onClick: advanceDay,
     });
@@ -1216,8 +1238,12 @@ export default function IsometricFarmGame() {
     const offscreen = offscreenRef.current;
     const ctx = offscreen.getContext('2d');
 
+    // Compute season fresh (avoid stale closures from useCallback)
+    const renderSeason = SEASON_ORDER[(gs.day - 1) % 4];
+    const renderSeasonData = SEASONS[renderSeason];
+
     // Clear with sky
-    ctx.fillStyle = seasonData.sky.bottom;
+    ctx.fillStyle = renderSeasonData.sky.bottom;
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
     
     ctx.save();
@@ -1232,9 +1258,9 @@ export default function IsometricFarmGame() {
     
     // Sky gradient
     const skyGrad = ctx.createLinearGradient(0, -500, 0, CANVAS_HEIGHT + 500);
-    skyGrad.addColorStop(0, seasonData.sky.top);
-    skyGrad.addColorStop(0.6, seasonData.sky.bottom);
-    skyGrad.addColorStop(1, seasonData.sky.horizon);
+    skyGrad.addColorStop(0, renderSeasonData.sky.top);
+    skyGrad.addColorStop(0.6, renderSeasonData.sky.bottom);
+    skyGrad.addColorStop(1, renderSeasonData.sky.horizon);
     ctx.fillStyle = skyGrad;
     ctx.fillRect(-1000, -1000, CANVAS_WIDTH + 2000, CANVAS_HEIGHT + 2000);
     
@@ -1276,7 +1302,7 @@ export default function IsometricFarmGame() {
         const hovered = gs.hoveredTile && gs.hoveredTile.x === x && gs.hoveredTile.y === y;
         
         if (!isField) {
-          drawTile(sx, sy, seasonData.grass);
+          drawTile(sx, sy, renderSeasonData.grass);
         } else {
           drawTile(sx, sy, cell.watered ? COLORS.soil.wet : COLORS.soil.dry);
           
@@ -1289,25 +1315,36 @@ export default function IsometricFarmGame() {
           if (cell.crop) {
             const cropData = CROPS[cell.crop];
             const isReady = cell.growth >= cropData.growTime;
-            ctx.globalAlpha = isReady ? 0.9 : 0.7;
+
+            ctx.globalAlpha = isReady ? 0.85 : 0.5;
             ctx.beginPath();
-            ctx.moveTo(sx, sy + 3);
-            ctx.lineTo(sx + TILE_WIDTH/2 - 3, sy + TILE_HEIGHT/2);
-            ctx.lineTo(sx, sy + TILE_HEIGHT - 3);
-            ctx.lineTo(sx - TILE_WIDTH/2 + 3, sy + TILE_HEIGHT/2);
+            ctx.moveTo(sx, sy + 4);
+            ctx.lineTo(sx + TILE_WIDTH/2 - 4, sy + TILE_HEIGHT/2);
+            ctx.lineTo(sx, sy + TILE_HEIGHT - 4);
+            ctx.lineTo(sx - TILE_WIDTH/2 + 4, sy + TILE_HEIGHT/2);
             ctx.closePath();
             ctx.fillStyle = isReady ? cropData.matureColor : cropData.color;
             ctx.fill();
             ctx.globalAlpha = 1;
-            
+
+            ctx.font = isReady ? '16px sans-serif' : '12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.globalAlpha = isReady ? 1 : 0.7;
+            ctx.fillText(cropData.icon, sx, sy + TILE_HEIGHT/2);
+            ctx.globalAlpha = 1;
+
             if (isReady) {
               ctx.beginPath();
-              ctx.arc(sx, sy + TILE_HEIGHT/2, 4, 0, Math.PI * 2);
+              ctx.arc(sx + TILE_WIDTH/4, sy + 4, 5, 0, Math.PI * 2);
               ctx.fillStyle = '#22C55E';
               ctx.fill();
               ctx.strokeStyle = 'white';
-              ctx.lineWidth = 1;
+              ctx.lineWidth = 1.5;
               ctx.stroke();
+              ctx.fillStyle = 'white';
+              ctx.font = 'bold 8px sans-serif';
+              ctx.fillText('✓', sx + TILE_WIDTH/4, sy + 4);
             }
           }
           
@@ -1483,7 +1520,7 @@ export default function IsometricFarmGame() {
     ctx.strokeStyle = COLORS.wood.dark;
     ctx.lineWidth = 2;
     ctx.stroke();
-    const toolIcon = SEASON_ACTIONS[season].find(a => a.id === gs.selectedAction)?.icon || '?';
+    const toolIcon = SEASON_ACTIONS[renderSeason].find(a => a.id === gs.selectedAction)?.icon || '?';
     ctx.font = '10px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -1491,27 +1528,32 @@ export default function IsometricFarmGame() {
     
     // Speech bubble
     if (gs.speechBubble) {
-      const bubbleY = fy + TILE_HEIGHT/2 - 55;
+      ctx.font = '11px sans-serif';
+      const textWidth = ctx.measureText(gs.speechBubble).width;
+      const bubbleWidth = Math.max(80, textWidth + 24);
+      const bubbleHeight = 28;
+      const bubbleY = fy + TILE_HEIGHT/2 - 60;
+      const bubbleX = fx - bubbleWidth / 2;
+
       ctx.fillStyle = 'white';
       ctx.strokeStyle = '#374151';
       ctx.lineWidth = 2;
-      drawRoundedRect(ctx, fx - 60, bubbleY - 15, 120, 24, 8);
+      drawRoundedRect(ctx, bubbleX, bubbleY, bubbleWidth, bubbleHeight, 8);
       ctx.fill();
       ctx.stroke();
-      
+
       ctx.beginPath();
-      ctx.moveTo(fx - 5, bubbleY + 9);
-      ctx.lineTo(fx + 5, bubbleY + 9);
-      ctx.lineTo(fx, bubbleY + 16);
+      ctx.moveTo(fx - 6, bubbleY + bubbleHeight);
+      ctx.lineTo(fx + 6, bubbleY + bubbleHeight);
+      ctx.lineTo(fx, bubbleY + bubbleHeight + 8);
       ctx.closePath();
       ctx.fillStyle = 'white';
       ctx.fill();
-      
+
       ctx.fillStyle = '#374151';
-      ctx.font = '10px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(gs.speechBubble, fx, bubbleY - 3);
+      ctx.fillText(gs.speechBubble, fx, bubbleY + bubbleHeight / 2);
     }
     
     ctx.restore();
@@ -1705,8 +1747,9 @@ export default function IsometricFarmGame() {
     // Game world click
     if (e.button === 0) { // Left click
       const tile = fromIso(x, y, gs.zoom, gs.cameraX, gs.cameraY, CANVAS_WIDTH, CANVAS_HEIGHT);
+      const clickSeason = SEASON_ORDER[(gs.day - 1) % 4];
       if (tile.x >= 0 && tile.x < WORLD_SIZE && tile.y >= 0 && tile.y < WORLD_SIZE) {
-        if (season === 'spring' && isFarmland(tile.x, tile.y)) {
+        if (clickSeason === 'spring' && isFarmland(tile.x, tile.y)) {
           gs.isDragging = true;
           gs.selectionStart = tile;
           gs.selectionEnd = tile;
@@ -1730,14 +1773,15 @@ export default function IsometricFarmGame() {
     }
     
     gs.isDragging = false;
-    
-    if (season === 'fall') {
+
+    const mouseUpSeason = SEASON_ORDER[(gs.day - 1) % 4];
+    if (mouseUpSeason === 'fall') {
       gs.selectionStart = null;
       gs.selectionEnd = null;
       requestRender();
       return;
     }
-    
+
     // Build plant queue
     const minX = Math.min(gs.selectionStart.x, gs.selectionEnd.x);
     const maxX = Math.max(gs.selectionStart.x, gs.selectionEnd.x);
@@ -1775,11 +1819,10 @@ export default function IsometricFarmGame() {
     
     const seedKey = `${gs.selectedCrop}_seeds`;
     if ((gs.inventory[seedKey] || 0) === 0) {
-      sounds.error();
-      showSpeech(`Out of ${CROPS[gs.selectedCrop].name} seeds!`);
+      handleOutOfSeeds();
       return;
     }
-    
+
     // Path to first cell then plant
     const firstCell = queue[0];
     const path = findPath(gs.farmerPos.x, gs.farmerPos.y, firstCell.x, firstCell.y);
@@ -1956,8 +1999,7 @@ export default function IsometricFarmGame() {
       if ((gs.inventory[seedKey] || 0) <= 0) {
         gs.isAutoPlanting = false;
         gs.autoPlantQueue = [];
-        sounds.error();
-        showSpeech(`Out of ${CROPS[gs.selectedCrop].name} seeds!`);
+        handleOutOfSeeds();
         return;
       }
       
