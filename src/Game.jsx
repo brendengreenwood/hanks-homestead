@@ -51,6 +51,13 @@ const MUSIC_TRACKS = {
   winter: '/audio/ambient-winter.wav',
 };
 
+const NATURE_TRACKS = {
+  spring: '/audio/nature-spring.wav',
+  summer: '/audio/nature-summer.wav',
+  fall: '/audio/nature-fall.wav',
+  winter: '/audio/nature-winter.wav',
+};
+
 const useMusic = (getAudioContext) => {
   const buffersRef = useRef({});
   const currentSourceRef = useRef(null);
@@ -75,6 +82,114 @@ const useMusic = (getAudioContext) => {
 
   const preloadAll = useCallback(async () => {
     await Promise.all(Object.keys(MUSIC_TRACKS).map(loadTrack));
+  }, [loadTrack]);
+
+  const playTrack = useCallback((season, fadeIn = 0) => {
+    const ctx = getAudioContext();
+    const buffer = buffersRef.current[season];
+    if (!buffer) return;
+
+    const source = ctx.createBufferSource();
+    const gainNode = ctx.createGain();
+
+    source.buffer = buffer;
+    source.loop = true;
+    source.connect(gainNode);
+    gainNode.connect(ctx.destination);
+
+    if (fadeIn > 0) {
+      gainNode.gain.setValueAtTime(0, ctx.currentTime);
+      gainNode.gain.linearRampToValueAtTime(volumeRef.current, ctx.currentTime + fadeIn);
+    } else {
+      gainNode.gain.setValueAtTime(volumeRef.current, ctx.currentTime);
+    }
+
+    source.start(0);
+    currentSourceRef.current = source;
+    currentGainRef.current = gainNode;
+    currentSeasonRef.current = season;
+    isPlayingRef.current = true;
+  }, [getAudioContext]);
+
+  const stopTrack = useCallback((fadeOut = 0) => {
+    if (!currentSourceRef.current || !currentGainRef.current) return;
+
+    const ctx = getAudioContext();
+    const gain = currentGainRef.current;
+    const source = currentSourceRef.current;
+
+    if (fadeOut > 0) {
+      gain.gain.setValueAtTime(gain.gain.value, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + fadeOut);
+      setTimeout(() => {
+        try { source.stop(); } catch (e) {}
+      }, fadeOut * 1000);
+    } else {
+      try { source.stop(); } catch (e) {}
+    }
+
+    currentSourceRef.current = null;
+    currentGainRef.current = null;
+    isPlayingRef.current = false;
+  }, [getAudioContext]);
+
+  const changeSeason = useCallback(async (newSeason, fadeOutDuration = 1.5, fadeInDuration = 0.2) => {
+    if (currentSeasonRef.current === newSeason && isPlayingRef.current) return;
+
+    await loadTrack(newSeason);
+
+    if (isPlayingRef.current) {
+      stopTrack(fadeOutDuration);
+    }
+
+    setTimeout(() => {
+      playTrack(newSeason, fadeInDuration);
+    }, fadeOutDuration * 600);
+  }, [loadTrack, stopTrack, playTrack]);
+
+  const setVolume = useCallback((vol) => {
+    volumeRef.current = Math.max(0, Math.min(1, vol));
+    if (currentGainRef.current) {
+      const ctx = getAudioContext();
+      currentGainRef.current.gain.setValueAtTime(volumeRef.current, ctx.currentTime);
+    }
+  }, [getAudioContext]);
+
+  const toggle = useCallback(() => {
+    if (isPlayingRef.current) {
+      stopTrack(0.3);
+    } else if (currentSeasonRef.current) {
+      playTrack(currentSeasonRef.current, 0.3);
+    }
+  }, [stopTrack, playTrack]);
+
+  return { preloadAll, changeSeason, setVolume, toggle, isPlaying: () => isPlayingRef.current };
+};
+
+const useAmbience = (getAudioContext) => {
+  const buffersRef = useRef({});
+  const currentSourceRef = useRef(null);
+  const currentGainRef = useRef(null);
+  const currentSeasonRef = useRef(null);
+  const isPlayingRef = useRef(false);
+  const volumeRef = useRef(0.25);
+
+  const loadTrack = useCallback(async (season) => {
+    if (buffersRef.current[season]) return buffersRef.current[season];
+    try {
+      const ctx = getAudioContext();
+      const response = await fetch(NATURE_TRACKS[season]);
+      const arrayBuffer = await response.arrayBuffer();
+      const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+      buffersRef.current[season] = audioBuffer;
+      return audioBuffer;
+    } catch (e) {
+      return null;
+    }
+  }, [getAudioContext]);
+
+  const preloadAll = useCallback(async () => {
+    await Promise.all(Object.keys(NATURE_TRACKS).map(loadTrack));
   }, [loadTrack]);
 
   const playTrack = useCallback((season, fadeIn = 0) => {
@@ -327,12 +442,12 @@ const drawButton = (ctx, x, y, w, h, text, isHovered, isActive, isDisabled) => {
 
 const drawPanel = (ctx, x, y, w, h) => {
   const r = 6;
-  
+
   // Shadow
   ctx.fillStyle = 'rgba(0,0,0,0.2)';
   drawRoundedRect(ctx, x + 2, y + 2, w, h, r);
   ctx.fill();
-  
+
   // Panel
   drawRoundedRect(ctx, x, y, w, h, r);
   ctx.fillStyle = COLORS.ui.panel;
@@ -342,13 +457,172 @@ const drawPanel = (ctx, x, y, w, h) => {
   ctx.stroke();
 };
 
+const drawCrop = (ctx, sx, sy, cropType, growthStage, maxGrowth, isWatered, isFed) => {
+  const cropData = CROPS[cropType];
+  const progress = Math.min(growthStage / maxGrowth, 1);
+  const isReady = growthStage >= maxGrowth;
+
+  const baseY = sy + TILE_HEIGHT / 2 + 8;
+  const maxHeight = 20;
+  const height = 6 + progress * (maxHeight - 6);
+
+  const stemColor = isReady ? cropData.matureColor : cropData.color;
+  const darkerStem = isReady ? '#2D5016' : '#1E3D0F';
+
+  ctx.save();
+
+  if (cropType === 'wheat') {
+    const stalks = isReady ? 5 : 3;
+    for (let i = 0; i < stalks; i++) {
+      const offsetX = (i - (stalks - 1) / 2) * 4;
+      const stalkHeight = height * (0.8 + Math.random() * 0.2);
+
+      ctx.strokeStyle = darkerStem;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(sx + offsetX, baseY);
+      ctx.lineTo(sx + offsetX, baseY - stalkHeight);
+      ctx.stroke();
+
+      if (isReady) {
+        ctx.fillStyle = cropData.matureColor;
+        ctx.beginPath();
+        ctx.ellipse(sx + offsetX, baseY - stalkHeight - 4, 2, 5, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  } else if (cropType === 'carrot') {
+    const leafCount = isReady ? 5 : 3;
+    for (let i = 0; i < leafCount; i++) {
+      const angle = (i / leafCount) * Math.PI - Math.PI / 2;
+      const leafLen = height * 0.8;
+
+      ctx.strokeStyle = stemColor;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(sx, baseY);
+      ctx.quadraticCurveTo(
+        sx + Math.cos(angle) * leafLen * 0.5,
+        baseY - leafLen * 0.7,
+        sx + Math.cos(angle) * leafLen * 0.3,
+        baseY - leafLen
+      );
+      ctx.stroke();
+    }
+
+    if (isReady) {
+      ctx.fillStyle = '#FF6B35';
+      ctx.beginPath();
+      ctx.moveTo(sx - 3, baseY + 2);
+      ctx.lineTo(sx + 3, baseY + 2);
+      ctx.lineTo(sx, baseY + 10);
+      ctx.closePath();
+      ctx.fill();
+    }
+  } else if (cropType === 'tomato') {
+    ctx.strokeStyle = darkerStem;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(sx, baseY);
+    ctx.lineTo(sx, baseY - height * 0.6);
+    ctx.stroke();
+
+    ctx.fillStyle = stemColor;
+    ctx.beginPath();
+    ctx.arc(sx, baseY - height * 0.5, height * 0.4, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (isReady) {
+      const tomatoes = [[sx - 5, baseY - height * 0.3], [sx + 4, baseY - height * 0.5], [sx, baseY - height * 0.7]];
+      tomatoes.forEach(([tx, ty]) => {
+        ctx.fillStyle = cropData.matureColor;
+        ctx.beginPath();
+        ctx.arc(tx, ty, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#8B0000';
+        ctx.beginPath();
+        ctx.arc(tx - 1, ty - 1, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+  } else if (cropType === 'corn') {
+    ctx.strokeStyle = darkerStem;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(sx, baseY);
+    ctx.lineTo(sx, baseY - height);
+    ctx.stroke();
+
+    if (progress > 0.3) {
+      ctx.strokeStyle = stemColor;
+      ctx.lineWidth = 2;
+      [[-6, 0.4], [5, 0.6]].forEach(([xOff, yPct]) => {
+        ctx.beginPath();
+        ctx.moveTo(sx, baseY - height * yPct);
+        ctx.quadraticCurveTo(sx + xOff, baseY - height * yPct - 3, sx + xOff * 1.5, baseY - height * yPct + 2);
+        ctx.stroke();
+      });
+    }
+
+    if (isReady) {
+      ctx.fillStyle = cropData.matureColor;
+      ctx.beginPath();
+      ctx.ellipse(sx + 4, baseY - height * 0.6, 3, 6, 0.3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#8B7355';
+      ctx.beginPath();
+      ctx.moveTo(sx + 4, baseY - height * 0.6 - 6);
+      ctx.lineTo(sx + 6, baseY - height * 0.6 - 10);
+      ctx.lineTo(sx + 8, baseY - height * 0.6 - 6);
+      ctx.stroke();
+    }
+  } else if (cropType === 'pumpkin') {
+    ctx.strokeStyle = darkerStem;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(sx, baseY);
+    ctx.quadraticCurveTo(sx - 8, baseY - 5, sx - 12, baseY + 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(sx, baseY);
+    ctx.quadraticCurveTo(sx + 8, baseY - 5, sx + 12, baseY + 2);
+    ctx.stroke();
+
+    [[-10, 2], [10, 2], [0, -3]].forEach(([lx, ly]) => {
+      ctx.fillStyle = stemColor;
+      ctx.beginPath();
+      ctx.ellipse(sx + lx, baseY + ly, 4, 3, 0, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    if (isReady) {
+      ctx.fillStyle = cropData.matureColor;
+      ctx.beginPath();
+      ctx.ellipse(sx, baseY + 4, 8, 6, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#CC5500';
+      ctx.beginPath();
+      ctx.ellipse(sx, baseY + 4, 8, 6, 0, 0, Math.PI * 2);
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = '#8B4000';
+      ctx.stroke();
+      ctx.fillStyle = '#556B2F';
+      ctx.fillRect(sx - 2, baseY - 2, 4, 4);
+    }
+  }
+
+  ctx.restore();
+};
+
 // ============================================
 // MAIN COMPONENT
 // ============================================
 export default function IsometricFarmGame() {
   const sounds = useSound();
   const music = useMusic(sounds.getAudioContext);
+  const ambience = useAmbience(sounds.getAudioContext);
   const musicStartedRef = useRef(false);
+  const ambienceStartedRef = useRef(false);
   const canvasRef = useRef(null);
   const offscreenRef = useRef(null);
   const canvasSizeRef = useRef({ width: window.innerWidth, height: window.innerHeight });
@@ -364,7 +638,7 @@ export default function IsometricFarmGame() {
     farmerDir: 'down',
     isMoving: false,
     grid: Array(WORLD_SIZE).fill(null).map(() =>
-      Array(WORLD_SIZE).fill(null).map(() => ({ crop: null, growth: 0, watered: false, fed: false }))
+      Array(WORLD_SIZE).fill(null).map(() => ({ crop: null, growth: 0, watered: false, fed: false, harvestPenalty: false }))
     ),
     buildings: [
       { type: 'farmhouse', x: FIELD_OFFSET - 3, y: FIELD_OFFSET },
@@ -381,11 +655,12 @@ export default function IsometricFarmGame() {
     isDragging: false,
     selectionStart: null,
     selectionEnd: null,
-    isAutoPlanting: false,
-    autoPlantQueue: [],
+    isAutoActing: false,
+    autoActionQueue: [],
+    pendingActionType: null,
     isPathing: false,
     pathQueue: [],
-    pendingPlantQueue: [],
+    pendingActionQueue: [],
     speechBubble: null,
     speechTimeout: null,
     notification: null,
@@ -542,7 +817,7 @@ export default function IsometricFarmGame() {
       const seedKey = `${gs.selectedCrop}_seeds`;
       if ((gs.inventory[seedKey] || 0) > 0) {
         gs.inventory[seedKey]--;
-        gs.grid[y][x] = { crop: gs.selectedCrop, growth: 0, watered: false, fed: false };
+        gs.grid[y][x] = { crop: gs.selectedCrop, growth: 0, watered: false, fed: false, harvestPenalty: false };
         sounds.plant();
         showNotification(`Planted ${CROPS[gs.selectedCrop].icon} ${CROPS[gs.selectedCrop].name}!`, 'success');
       } else {
@@ -576,12 +851,19 @@ export default function IsometricFarmGame() {
       }
       const cropData = CROPS[cell.crop];
       if (cell.growth >= cropData.growTime) {
-        const bonus = cell.fed ? 2 : 1;
-        gs.inventory[cell.crop] = (gs.inventory[cell.crop] || 0) + bonus;
-        gs.grid[y][x] = { crop: null, growth: 0, watered: false, fed: false };
+        let harvestAmount = 1;
+        let message = '';
+        if (cell.harvestPenalty) {
+          harvestAmount = 1;
+          message = ` (withered - water next time!)`;
+        } else if (cell.fed) {
+          harvestAmount = 2;
+          message = ` (+1 bonus!)`;
+        }
+        gs.inventory[cell.crop] = (gs.inventory[cell.crop] || 0) + harvestAmount;
+        gs.grid[y][x] = { crop: null, growth: 0, watered: false, fed: false, harvestPenalty: false };
         sounds.harvest();
-        const bonusText = bonus > 1 ? ` (+${bonus - 1} bonus!)` : '';
-        showNotification(`Harvested ${cropData.icon} ${cropData.name}!${bonusText}`, 'success');
+        showNotification(`Harvested ${cropData.icon} ${cropData.name}!${message}`, cell.harvestPenalty ? 'info' : 'success');
       } else {
         sounds.error();
         showNotification('Not ready yet!', 'error');
@@ -600,6 +882,7 @@ export default function IsometricFarmGame() {
 
     gs.selectedAction = SEASON_ACTIONS[nextSeason][0].id;
     music.changeSeason(nextSeason);
+    ambience.changeSeason(nextSeason);
 
     if (currentSeason === 'spring' && nextSeason === 'summer') {
       sounds.sleep();
@@ -608,8 +891,12 @@ export default function IsometricFarmGame() {
     } else if (currentSeason === 'summer' && nextSeason === 'fall') {
       for (let y = 0; y < WORLD_SIZE; y++) {
         for (let x = 0; x < WORLD_SIZE; x++) {
-          if (gs.grid[y][x].crop && gs.grid[y][x].watered) {
-            gs.grid[y][x].growth = CROPS[gs.grid[y][x].crop].growTime;
+          const cell = gs.grid[y][x];
+          if (cell.crop) {
+            cell.growth = CROPS[cell.crop].growTime;
+            if (!cell.watered) {
+              cell.harvestPenalty = true;
+            }
           }
         }
       }
@@ -623,7 +910,7 @@ export default function IsometricFarmGame() {
     } else if (currentSeason === 'winter' && nextSeason === 'spring') {
       for (let y = 0; y < WORLD_SIZE; y++) {
         for (let x = 0; x < WORLD_SIZE; x++) {
-          gs.grid[y][x] = { crop: null, growth: 0, watered: false, fed: false };
+          gs.grid[y][x] = { crop: null, growth: 0, watered: false, fed: false, harvestPenalty: false };
         }
       }
       sounds.sleep();
@@ -663,7 +950,7 @@ export default function IsometricFarmGame() {
     gs.farmerPos = { x: FIELD_OFFSET + 4, y: FIELD_OFFSET + 4 };
     gs.farmerDir = 'down';
     gs.grid = Array(WORLD_SIZE).fill(null).map(() =>
-      Array(WORLD_SIZE).fill(null).map(() => ({ crop: null, growth: 0, watered: false, fed: false }))
+      Array(WORLD_SIZE).fill(null).map(() => ({ crop: null, growth: 0, watered: false, fed: false, harvestPenalty: false }))
     );
     gs.zoom = 2.2;
     gs.cameraX = 0;
@@ -671,8 +958,10 @@ export default function IsometricFarmGame() {
     gs.cameraInitialized = false;
     gs.isPathing = false;
     gs.pathQueue = [];
-    gs.isAutoPlanting = false;
-    gs.autoPlantQueue = [];
+    gs.isAutoActing = false;
+    gs.autoActionQueue = [];
+    gs.pendingActionQueue = [];
+    gs.pendingActionType = null;
     gs.showShop = false;
     showNotification('Game reset! Spring has arrived.', 'info');
     requestRender();
@@ -1316,27 +1605,11 @@ export default function IsometricFarmGame() {
             const cropData = CROPS[cell.crop];
             const isReady = cell.growth >= cropData.growTime;
 
-            ctx.globalAlpha = isReady ? 0.85 : 0.5;
-            ctx.beginPath();
-            ctx.moveTo(sx, sy + 4);
-            ctx.lineTo(sx + TILE_WIDTH/2 - 4, sy + TILE_HEIGHT/2);
-            ctx.lineTo(sx, sy + TILE_HEIGHT - 4);
-            ctx.lineTo(sx - TILE_WIDTH/2 + 4, sy + TILE_HEIGHT/2);
-            ctx.closePath();
-            ctx.fillStyle = isReady ? cropData.matureColor : cropData.color;
-            ctx.fill();
-            ctx.globalAlpha = 1;
-
-            ctx.font = isReady ? '16px sans-serif' : '12px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.globalAlpha = isReady ? 1 : 0.7;
-            ctx.fillText(cropData.icon, sx, sy + TILE_HEIGHT/2);
-            ctx.globalAlpha = 1;
+            drawCrop(ctx, sx, sy, cell.crop, cell.growth, cropData.growTime, cell.watered, cell.fed);
 
             if (isReady) {
               ctx.beginPath();
-              ctx.arc(sx + TILE_WIDTH/4, sy + 4, 5, 0, Math.PI * 2);
+              ctx.arc(sx + TILE_WIDTH/4, sy - 6, 5, 0, Math.PI * 2);
               ctx.fillStyle = '#22C55E';
               ctx.fill();
               ctx.strokeStyle = 'white';
@@ -1344,26 +1617,44 @@ export default function IsometricFarmGame() {
               ctx.stroke();
               ctx.fillStyle = 'white';
               ctx.font = 'bold 8px sans-serif';
-              ctx.fillText('✓', sx + TILE_WIDTH/4, sy + 4);
-            }
-          }
-          
-          if (cell.watered) {
-            ctx.globalAlpha = 0.8;
-            ctx.beginPath();
-            ctx.ellipse(sx + TILE_WIDTH/2 - 12, sy + 6, 4, 5, 0, 0, Math.PI * 2);
-            ctx.fillStyle = '#3B82F6';
-            ctx.fill();
-            ctx.globalAlpha = 1;
-          }
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText('✓', sx + TILE_WIDTH/4, sy - 6);
+            } else {
+              const iconSize = 10;
+              const iconY = sy + 2;
+              ctx.font = `${iconSize}px sans-serif`;
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
 
-          if (cell.fed) {
-            ctx.globalAlpha = 0.9;
-            ctx.beginPath();
-            ctx.ellipse(sx - TILE_WIDTH/2 + 12, sy + 6, 4, 5, 0, 0, Math.PI * 2);
-            ctx.fillStyle = '#A855F7';
-            ctx.fill();
-            ctx.globalAlpha = 1;
+              if (cell.watered) {
+                ctx.fillText('💧', sx - 8, iconY);
+              } else {
+                ctx.globalAlpha = 0.5;
+                ctx.fillText('💧', sx - 8, iconY);
+                ctx.globalAlpha = 1;
+                ctx.strokeStyle = '#666';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(sx - 13, iconY - 5);
+                ctx.lineTo(sx - 3, iconY + 5);
+                ctx.stroke();
+              }
+
+              if (cell.fed) {
+                ctx.fillText('🧪', sx + 8, iconY);
+              } else {
+                ctx.globalAlpha = 0.5;
+                ctx.fillText('🧪', sx + 8, iconY);
+                ctx.globalAlpha = 1;
+                ctx.strokeStyle = '#666';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(sx + 3, iconY - 5);
+                ctx.lineTo(sx + 13, iconY + 5);
+                ctx.stroke();
+              }
+            }
           }
         }
         
@@ -1621,12 +1912,13 @@ export default function IsometricFarmGame() {
       ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform
       ctx.scale(dpr, dpr);
 
-      // Center camera on field center (18, 18) on first load
+      // Center camera on farmer on first load
       if (!gs.cameraInitialized) {
-        const worldCenterScreenX = WORLD_OFFSET_X + WORLD_CENTER_X;
-        const worldCenterScreenY = WORLD_OFFSET_Y + (WORLD_SIZE * TILE_HEIGHT / 2);
-        gs.cameraX = displayWidth / 2 - worldCenterScreenX;
-        gs.cameraY = displayHeight / 2 - worldCenterScreenY;
+        const farmerIso = toIso(gs.farmerPos.x, gs.farmerPos.y);
+        const farmerScreenX = WORLD_OFFSET_X + farmerIso.isoX + WORLD_CENTER_X;
+        const farmerScreenY = WORLD_OFFSET_Y + farmerIso.isoY + TILE_HEIGHT / 2;
+        gs.cameraX = displayWidth / 2 - farmerScreenX;
+        gs.cameraY = displayHeight / 2 - farmerScreenY;
         gs.cameraInitialized = true;
       }
 
@@ -1638,19 +1930,24 @@ export default function IsometricFarmGame() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Preload music tracks
+  // Preload music and ambience tracks
   useEffect(() => {
     music.preloadAll();
+    ambience.preloadAll();
   }, []);
 
-  // Start music on first interaction (browser autoplay policy)
-  const startMusicIfNeeded = useCallback(() => {
+  // Start audio on first interaction (browser autoplay policy)
+  const startAudioIfNeeded = useCallback(() => {
+    const currentSeason = SEASON_ORDER[(gs.day - 1) % 4];
     if (!musicStartedRef.current) {
       musicStartedRef.current = true;
-      const currentSeason = SEASON_ORDER[(gs.day - 1) % 4];
       music.changeSeason(currentSeason, 0, 0.5);
     }
-  }, [music]);
+    if (!ambienceStartedRef.current) {
+      ambienceStartedRef.current = true;
+      ambience.changeSeason(currentSeason, 0, 0.5);
+    }
+  }, [music, ambience]);
 
   // Render on update
   useEffect(() => {
@@ -1721,7 +2018,7 @@ export default function IsometricFarmGame() {
   };
   
   const handleMouseDown = (e) => {
-    startMusicIfNeeded();
+    startAudioIfNeeded();
 
     const rect = canvasRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -1749,7 +2046,7 @@ export default function IsometricFarmGame() {
       const tile = fromIso(x, y, gs.zoom, gs.cameraX, gs.cameraY, CANVAS_WIDTH, CANVAS_HEIGHT);
       const clickSeason = SEASON_ORDER[(gs.day - 1) % 4];
       if (tile.x >= 0 && tile.x < WORLD_SIZE && tile.y >= 0 && tile.y < WORLD_SIZE) {
-        if (clickSeason === 'spring' && isFarmland(tile.x, tile.y)) {
+        if ((clickSeason === 'spring' || clickSeason === 'summer') && isFarmland(tile.x, tile.y)) {
           gs.isDragging = true;
           gs.selectionStart = tile;
           gs.selectionEnd = tile;
@@ -1775,27 +2072,27 @@ export default function IsometricFarmGame() {
     gs.isDragging = false;
 
     const mouseUpSeason = SEASON_ORDER[(gs.day - 1) % 4];
-    if (mouseUpSeason === 'fall') {
+    if (mouseUpSeason !== 'spring' && mouseUpSeason !== 'summer') {
       gs.selectionStart = null;
       gs.selectionEnd = null;
       requestRender();
       return;
     }
 
-    // Build plant queue
+    // Build action queue
     const minX = Math.min(gs.selectionStart.x, gs.selectionEnd.x);
     const maxX = Math.max(gs.selectionStart.x, gs.selectionEnd.x);
     const minY = Math.min(gs.selectionStart.y, gs.selectionEnd.y);
     const maxY = Math.max(gs.selectionStart.y, gs.selectionEnd.y);
-    
+
     const startFromLeft = gs.selectionStart.x <= gs.selectionEnd.x;
     const startFromTop = gs.selectionStart.y <= gs.selectionEnd.y;
-    
+
     const queue = [];
-    const yRange = startFromTop 
+    const yRange = startFromTop
       ? Array.from({ length: maxY - minY + 1 }, (_, i) => minY + i)
       : Array.from({ length: maxY - minY + 1 }, (_, i) => maxY - i);
-    
+
     yRange.forEach((py, rowIndex) => {
       const goingRight = startFromLeft ? (rowIndex % 2 === 0) : (rowIndex % 2 === 1);
       if (goingRight) {
@@ -1808,40 +2105,44 @@ export default function IsometricFarmGame() {
         }
       }
     });
-    
+
     gs.selectionStart = null;
     gs.selectionEnd = null;
-    
+
     if (queue.length === 0) {
       requestRender();
       return;
     }
-    
-    const seedKey = `${gs.selectedCrop}_seeds`;
-    if ((gs.inventory[seedKey] || 0) === 0) {
-      handleOutOfSeeds();
-      return;
+
+    // Validate action
+    if (gs.selectedAction === 'plant') {
+      const seedKey = `${gs.selectedCrop}_seeds`;
+      if ((gs.inventory[seedKey] || 0) === 0) {
+        handleOutOfSeeds();
+        return;
+      }
     }
 
-    // Path to first cell then plant
+    // Path to first cell then act
     const firstCell = queue[0];
     const path = findPath(gs.farmerPos.x, gs.farmerPos.y, firstCell.x, firstCell.y);
-    
+
+    gs.pendingActionType = gs.selectedAction;
     if (path.length > 0) {
       gs.pathQueue = path;
       gs.isPathing = true;
-      gs.pendingPlantQueue = queue;
+      gs.pendingActionQueue = queue;
     } else {
-      gs.autoPlantQueue = queue;
-      gs.isAutoPlanting = true;
+      gs.autoActionQueue = queue;
+      gs.isAutoActing = true;
     }
-    
+
     requestRender();
   };
   
   const handleContextMenu = (e) => {
     e.preventDefault();
-    if (gs.isAutoPlanting || gs.isPanning) return;
+    if (gs.isAutoActing || gs.isPanning) return;
 
     const rect = canvasRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -1860,7 +2161,8 @@ export default function IsometricFarmGame() {
         sounds.click();
         gs.pathQueue = path;
         gs.isPathing = true;
-        gs.pendingPlantQueue = [];
+        gs.pendingActionQueue = [];
+        gs.pendingActionType = null;
         requestRender();
       }
     }
@@ -1912,7 +2214,10 @@ export default function IsometricFarmGame() {
         case 'escape':
           gs.isPathing = false;
           gs.pathQueue = [];
-          gs.pendingPlantQueue = [];
+          gs.pendingActionQueue = [];
+          gs.pendingActionType = null;
+          gs.isAutoActing = false;
+          gs.autoActionQueue = [];
           gs.showShop = false;
           requestRender();
           return;
@@ -1922,7 +2227,8 @@ export default function IsometricFarmGame() {
       if (gs.isPathing) {
         gs.isPathing = false;
         gs.pathQueue = [];
-        gs.pendingPlantQueue = [];
+        gs.pendingActionQueue = [];
+        gs.pendingActionType = null;
       }
 
       if (!isWalkable(newX, newY)) {
@@ -1982,48 +2288,69 @@ export default function IsometricFarmGame() {
         
         if (rest.length === 0) {
           gs.isPathing = false;
-          if (gs.pendingPlantQueue.length > 0) {
-            gs.autoPlantQueue = gs.pendingPlantQueue;
-            gs.isAutoPlanting = true;
-            gs.pendingPlantQueue = [];
+          if (gs.pendingActionQueue.length > 0) {
+            gs.autoActionQueue = gs.pendingActionQueue;
+            gs.isAutoActing = true;
+            gs.pendingActionQueue = [];
           }
         }
       }, 120);
       return () => clearTimeout(timer);
     }
   });
-  
+
   useEffect(() => {
-    if (gs.isAutoPlanting && gs.autoPlantQueue.length > 0) {
-      const seedKey = `${gs.selectedCrop}_seeds`;
-      if ((gs.inventory[seedKey] || 0) <= 0) {
-        gs.isAutoPlanting = false;
-        gs.autoPlantQueue = [];
-        handleOutOfSeeds();
-        return;
+    if (gs.isAutoActing && gs.autoActionQueue.length > 0) {
+      const actionType = gs.pendingActionType || gs.selectedAction;
+
+      if (actionType === 'plant') {
+        const seedKey = `${gs.selectedCrop}_seeds`;
+        if ((gs.inventory[seedKey] || 0) <= 0) {
+          gs.isAutoActing = false;
+          gs.autoActionQueue = [];
+          gs.pendingActionType = null;
+          handleOutOfSeeds();
+          return;
+        }
       }
-      
+
       const timer = setTimeout(() => {
-        const [next, ...rest] = gs.autoPlantQueue;
-        
+        const [next, ...rest] = gs.autoActionQueue;
+
         gs.farmerPos = next;
         gs.isMoving = true;
-        
+
         const cell = gs.grid[next.y][next.x];
-        if (!cell.crop && (gs.inventory[seedKey] || 0) > 0) {
-          gs.inventory[seedKey]--;
-          gs.grid[next.y][next.x] = { crop: gs.selectedCrop, growth: 0, watered: false, fed: false };
-          sounds.plant();
+
+        if (actionType === 'plant') {
+          const seedKey = `${gs.selectedCrop}_seeds`;
+          if (!cell.crop && (gs.inventory[seedKey] || 0) > 0) {
+            gs.inventory[seedKey]--;
+            gs.grid[next.y][next.x] = { crop: gs.selectedCrop, growth: 0, watered: false, fed: false, harvestPenalty: false };
+            sounds.plant();
+          }
+        } else if (actionType === 'water') {
+          if (cell.crop && !cell.watered) {
+            gs.grid[next.y][next.x].watered = true;
+            sounds.water();
+          }
+        } else if (actionType === 'clean') {
+          if (cell.crop && !cell.fed) {
+            gs.grid[next.y][next.x].fed = true;
+            sounds.water();
+          }
         }
-        
-        gs.autoPlantQueue = rest;
+
+        gs.autoActionQueue = rest;
         requestRender();
-        
+
         setTimeout(() => { gs.isMoving = false; requestRender(); }, 100);
-        
+
         if (rest.length === 0) {
-          gs.isAutoPlanting = false;
-          showNotification('Planting complete!', 'success');
+          gs.isAutoActing = false;
+          gs.pendingActionType = null;
+          const actionNames = { plant: 'Planting', water: 'Watering', clean: 'Feeding' };
+          showNotification(`${actionNames[actionType] || 'Action'} complete!`, 'success');
         }
       }, 150);
       return () => clearTimeout(timer);
