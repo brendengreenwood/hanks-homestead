@@ -887,8 +887,10 @@ export default function IsometricFarmGame() {
 
     if (currentSeason === 'spring' && nextSeason === 'summer') {
       sounds.sleep();
-      setTimeout(() => sounds.wake(), 500);
-      showNotification('Summer has arrived! Water and feed your crops!', 'success');
+      setTimeout(() => {
+        sounds.wake();
+        showSpeech("Whoo-wee, it's gettin' hot! Time to water them crops before they shrivel up!", 4000);
+      }, 500);
     } else if (currentSeason === 'summer' && nextSeason === 'fall') {
       for (let y = 0; y < WORLD_SIZE; y++) {
         for (let x = 0; x < WORLD_SIZE; x++) {
@@ -902,11 +904,16 @@ export default function IsometricFarmGame() {
         }
       }
       sounds.sleep();
-      setTimeout(() => sounds.wake(), 500);
-      showNotification('Fall has arrived! Time to harvest!', 'success');
+      setTimeout(() => {
+        sounds.wake();
+        showSpeech("Well I'll be! Look at all them ripe crops! Time to bring in the harvest!", 4000);
+      }, 500);
     } else if (currentSeason === 'fall' && nextSeason === 'winter') {
       sounds.sleep();
-      setTimeout(() => sounds.wake(), 500);
+      setTimeout(() => {
+        sounds.wake();
+        showSpeech("Brrr! Winter's comin'! Better sell what we got before the snow flies!", 4000);
+      }, 500);
       gs.showSellModal = true;
     } else if (currentSeason === 'winter' && nextSeason === 'spring') {
       for (let y = 0; y < WORLD_SIZE; y++) {
@@ -915,8 +922,10 @@ export default function IsometricFarmGame() {
         }
       }
       sounds.sleep();
-      setTimeout(() => sounds.wake(), 500);
-      showNotification('Spring is here! Time to plant!', 'success');
+      setTimeout(() => {
+        sounds.wake();
+        showSpeech("It's spring! Nothin' like fresh dirt and new seeds! Let's get plantin'!", 4000);
+      }, 500);
     }
     requestRender();
   };
@@ -965,7 +974,9 @@ export default function IsometricFarmGame() {
     gs.pendingActionType = null;
     gs.showShop = false;
     gs.showSellModal = false;
-    showNotification('Game reset! Spring has arrived.', 'info');
+    setTimeout(() => {
+      showSpeech("Alrighty, fresh start! Let's make this the best darn harvest yet!", 4000);
+    }, 300);
     requestRender();
   };
   
@@ -2213,6 +2224,9 @@ export default function IsometricFarmGame() {
         gs.cameraX = displayWidth / 2 - farmerScreenX;
         gs.cameraY = displayHeight / 2 - farmerScreenY;
         gs.cameraInitialized = true;
+        setTimeout(() => {
+          showSpeech("Howdy! Welcome to Hank's Homestead! It's plantin' season, partner!", 4000);
+        }, 500);
       }
 
       requestRender();
