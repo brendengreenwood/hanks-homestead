@@ -21,7 +21,8 @@ export const MODELS = {
   farmhouse: 'tent_detailedOpen.glb',
   silo: 'tent_smallClosed.glb',
 
-  // Farmer: no character in the Nature Kit, keep the procedural placeholder.
+  // Farmer: Kenney Mini Characters (CC0) base, dressed up with accessories
+  // (straw hat + pitchfork) in the scene. Falls back to the procedural farmer.
   farmer: null,
 
   // Crops: [growing sprout, mature]. The kit ships real growth-stage props.
@@ -68,6 +69,22 @@ export const DECORATIONS = [
   { model: 'flower_purpleA.glb', x: -9, z: -4, s: 1.0, r: 1.9 },
   { model: 'flower_redA.glb', x: 8.5, z: 3.5, s: 1.0, r: 2.5 },
 ];
+
+// Farmer character (Kenney Mini Characters, CC0) — lives in its own folder since
+// it's a different kit. It's dressed up in FarmScene with a procedural straw hat
+// and pitchfork to read as a farmer. scale/y/rot tune the character to stand
+// ~1 tile tall, feet on the ground; accessory pos/rot are in farmer-group world
+// units (origin at the farmer's feet). Tweak these to taste.
+// Model is ~0.67 units tall at scale 1 with feet at y=0; scale ~1.4 => ~0.94 tall.
+// If the character faces away from its travel direction, set rot to Math.PI.
+export const FARMER = {
+  model: USE_KENNEY_ASSETS ? '/models/characters/character-male-a.glb' : null,
+  scale: 1.4,
+  y: 0,
+  rot: 0,
+  hat: { pos: [0, 0.9, 0], rot: [0, 0, 0] },
+  pitchfork: { pos: [0.33, 0, 0.04], rot: [0, 0, 0.06] },
+};
 
 // Resolve a logical key to a full URL, or null when assets are disabled/unmapped.
 export const modelUrl = (file) => {
