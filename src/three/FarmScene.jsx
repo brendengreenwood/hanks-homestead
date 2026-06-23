@@ -344,6 +344,148 @@ function Decorations() {
 }
 
 // ============================================
+// CHICKENS — procedural flat-shaded hens that wander the barnyard and
+// scatter when Hank gets close. Pure useFrame; no game state involved.
+// ============================================
+const CHICKEN_HOME = { x: -7.2, z: -1.0 }; // grassy patch beside the farmhouse
+const CHICKEN_COUNT = 5;
+const YARD_R = 1.9; // how far they roam from home
+const FLEE_R = 2.3; // how close Hank can get before they bolt
+
+function Chicken() {
+  const white = '#f7f3ea';
+  const red = '#cf3b2b';
+  const beak = '#e8a13a';
+  return (
+    <group>
+      {/* body (faces +Z) */}
+      <mesh position={[0, 0.12, 0]} scale={[1, 0.9, 1.25]} castShadow>
+        <sphereGeometry args={[0.12, 10, 8]} />
+        <meshStandardMaterial color={white} flatShading roughness={1} />
+      </mesh>
+      {/* tail */}
+      <mesh position={[0, 0.19, -0.13]} rotation={[0.7, 0, 0]} castShadow>
+        <coneGeometry args={[0.08, 0.13, 4]} />
+        <meshStandardMaterial color="#e6ddcb" flatShading roughness={1} />
+      </mesh>
+      {/* head */}
+      <mesh position={[0, 0.25, 0.1]} castShadow>
+        <sphereGeometry args={[0.075, 10, 8]} />
+        <meshStandardMaterial color={white} flatShading roughness={1} />
+      </mesh>
+      {/* comb */}
+      <mesh position={[0, 0.32, 0.1]} castShadow>
+        <boxGeometry args={[0.02, 0.045, 0.07]} />
+        <meshStandardMaterial color={red} flatShading roughness={1} />
+      </mesh>
+      {/* beak (points +Z) */}
+      <mesh position={[0, 0.24, 0.18]} rotation={[Math.PI / 2, 0, 0]} castShadow>
+        <coneGeometry args={[0.025, 0.06, 4]} />
+        <meshStandardMaterial color={beak} flatShading roughness={1} />
+      </mesh>
+      {/* wattle */}
+      <mesh position={[0, 0.2, 0.16]}>
+        <boxGeometry args={[0.015, 0.035, 0.02]} />
+        <meshStandardMaterial color={red} flatShading roughness={1} />
+      </mesh>
+      {/* legs */}
+      {[-0.045, 0.045].map((x) => (
+        <mesh key={x} position={[x, 0.035, 0.02]}>
+          <cylinderGeometry args={[0.012, 0.012, 0.08, 5]} />
+          <meshStandardMaterial color={beak} flatShading roughness={1} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+function Chickens({ gs }) {
+  const refs = useRef([]);
+  const state = useRef(
+    Array.from({ length: CHICKEN_COUNT }, () => {
+      const a = Math.random() * Math.PI * 2;
+      const r = Math.random() * YARD_R * 0.8;
+      const x = CHICKEN_HOME.x + Math.cos(a) * r;
+      const z = CHICKEN_HOME.z + Math.sin(a) * r;
+      return { x, z, tx: x, tz: z, dir: Math.random() * Math.PI * 2, wait: Math.random() * 2, phase: Math.random() * 10 };
+    })
+  );
+
+  useFrame((_, dt) => {
+    const fx = gx(gs.farmerPos.x);
+    const fz = gz(gs.farmerPos.y);
+    const step = Math.min(dt, 0.05); // guard against big tab-out jumps
+
+    for (let i = 0; i < state.current.length; i++) {
+      const c = state.current[i];
+      const g = refs.current[i];
+      if (!g) continue;
+
+      const dfx = c.x - fx;
+      const dfz = c.z - fz;
+      const df = Math.hypot(dfx, dfz);
+
+      let speed;
+      let moving = true;
+      if (df < FLEE_R) {
+        // bolt directly away from Hank
+        const inv = 1 / (df || 0.001);
+        c.tx = c.x + dfx * inv;
+        c.tz = c.z + dfz * inv;
+        speed = 2.5;
+        c.wait = 0.4 + Math.random() * 0.6; // stay nervous a moment after
+      } else {
+        c.wait -= step;
+        const reached = Math.hypot(c.tx - c.x, c.tz - c.z) < 0.12;
+        if (reached && c.wait <= 0) {
+          const a = Math.random() * Math.PI * 2;
+          const r = Math.random() * YARD_R;
+          c.tx = CHICKEN_HOME.x + Math.cos(a) * r;
+          c.tz = CHICKEN_HOME.z + Math.sin(a) * r;
+          c.wait = 0.8 + Math.random() * 2.6; // pause to peck between strolls
+        }
+        moving = !reached;
+        speed = 0.65;
+      }
+
+      if (moving) {
+        const dx = c.tx - c.x;
+        const dz = c.tz - c.z;
+        const d = Math.hypot(dx, dz) || 1;
+        const s = Math.min(speed * step, d);
+        c.x += (dx / d) * s;
+        c.z += (dz / d) * s;
+        c.dir = Math.atan2(dx, dz);
+        c.phase += speed * step * 16;
+      }
+
+      // keep them in the yard (slightly looser when fleeing)
+      const hx = c.x - CHICKEN_HOME.x;
+      const hz = c.z - CHICKEN_HOME.z;
+      const hd = Math.hypot(hx, hz);
+      const maxR = YARD_R + 0.7;
+      if (hd > maxR) {
+        c.x = CHICKEN_HOME.x + (hx / hd) * maxR;
+        c.z = CHICKEN_HOME.z + (hz / hd) * maxR;
+      }
+
+      g.position.x = c.x;
+      g.position.z = c.z;
+      g.position.y = moving ? Math.abs(Math.sin(c.phase)) * 0.05 : 0;
+      let dd = c.dir - g.rotation.y;
+      dd = Math.atan2(Math.sin(dd), Math.cos(dd));
+      g.rotation.y += dd * (1 - Math.exp(-(df < FLEE_R ? 16 : 8) * step));
+    }
+  });
+
+  return state.current.map((_, i) => (
+    <group key={i} ref={(el) => (refs.current[i] = el)}>
+      <Chicken />
+    </group>
+  ));
+}
+
+// ============================================
 // FARMER ACCESSORIES (procedural — straw hat + pitchfork)
 // ============================================
 function StrawHat({ pos = [0, 1.02, 0], rot = [0, 0, 0] }) {
@@ -646,6 +788,7 @@ export default function FarmScene({ gs, version, onTilePointerDown, onTilePointe
         <Decorations />
         <Field gs={gs} onPointerDown={onTilePointerDown} onPointerEnter={onTilePointerEnter} />
         <Buildings buildings={gs.buildings} />
+        <Chickens gs={gs} />
         <Farmer gs={gs} />
       </group>
     </Canvas>
