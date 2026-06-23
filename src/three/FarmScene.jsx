@@ -503,29 +503,51 @@ function ProceduralFarmer() {
 }
 
 // ============================================
-// FARMER (smoothly lerps toward gs.farmerPos)
+// FARMER (smoothly lerps/turns toward gs.farmerPos + gs.farmerDir)
 // ============================================
+const DIR_ANGLE = { up: Math.PI, down: 0, left: -Math.PI / 2, right: Math.PI / 2 };
+
 function Farmer({ gs }) {
   const ref = useRef();
-  const bob = useRef(0);
   const movingRef = useRef(false);
+  const stride = useRef(0); // hop phase, advanced by distance travelled
+  const moveAmt = useRef(0); // smoothed 0..1 "is walking" factor
+  const prev = useRef(null); // last rendered world pos
 
   useFrame((_, dt) => {
-    if (!ref.current) return;
+    const g = ref.current;
+    if (!g) return;
+    if (!prev.current) prev.current = { x: g.position.x, z: g.position.z };
+
     const tx = gx(gs.farmerPos.x);
     const tz = gz(gs.farmerPos.y);
-    ref.current.position.x = THREE.MathUtils.damp(ref.current.position.x, tx, 12, dt);
-    ref.current.position.z = THREE.MathUtils.damp(ref.current.position.z, tz, 12, dt);
 
-    // face direction
-    const dir = { up: Math.PI, down: 0, left: -Math.PI / 2, right: Math.PI / 2 }[gs.farmerDir] ?? 0;
-    ref.current.rotation.y = THREE.MathUtils.damp(ref.current.rotation.y, dir, 10, dt);
+    // Eased glide toward the target tile (a touch slower than before so each
+    // tile-to-tile step reads as a deliberate stride).
+    g.position.x = THREE.MathUtils.damp(g.position.x, tx, 9, dt);
+    g.position.z = THREE.MathUtils.damp(g.position.z, tz, 9, dt);
 
-    // bob while moving (procedural fallback only; the rigged model walks itself)
-    const moving = gs.isMoving || Math.abs(ref.current.position.x - tx) > 0.02 || Math.abs(ref.current.position.z - tz) > 0.02;
+    // Shortest-path turn: wrap the delta to [-PI, PI] so he never spins the
+    // long way around (e.g. left -> up).
+    const target = DIR_ANGLE[gs.farmerDir] ?? 0;
+    let d = target - g.rotation.y;
+    d = Math.atan2(Math.sin(d), Math.cos(d));
+    g.rotation.y += d * (1 - Math.exp(-11 * dt));
+
+    // Distance covered this frame -> drives the walking hop's stride.
+    const stepDist = Math.hypot(g.position.x - prev.current.x, g.position.z - prev.current.z);
+    prev.current.x = g.position.x;
+    prev.current.z = g.position.z;
+
+    const remaining = Math.hypot(tx - g.position.x, tz - g.position.z);
+    const moving = gs.isMoving || remaining > 0.015;
     movingRef.current = moving;
-    bob.current += dt * 12;
-    ref.current.position.y = !FARMER.model && moving ? Math.abs(Math.sin(bob.current)) * 0.08 : 0;
+
+    // Smooth the walk factor so the hop fades in/out instead of snapping.
+    moveAmt.current = THREE.MathUtils.damp(moveAmt.current, moving ? 1 : 0, 14, dt);
+    stride.current += stepDist * 16; // hops per unit travelled
+    const hopH = FARMER.model ? 0.045 : 0.08;
+    g.position.y = Math.abs(Math.sin(stride.current)) * hopH * moveAmt.current;
   });
 
   const dressed = FARMER.model ? (
