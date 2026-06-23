@@ -517,10 +517,15 @@ function Farmer({ gs }) {
   useFrame((_, dt) => {
     const g = ref.current;
     if (!g) return;
-    if (!prev.current) prev.current = { x: g.position.x, z: g.position.z };
 
     const tx = gx(gs.farmerPos.x);
     const tz = gz(gs.farmerPos.y);
+
+    // First frame: snap to the starting tile (no glide in from the origin).
+    if (!prev.current) {
+      g.position.set(tx, 0, tz);
+      prev.current = { x: tx, z: tz };
+    }
 
     // Eased glide toward the target tile (a touch slower than before so each
     // tile-to-tile step reads as a deliberate stride).
@@ -560,8 +565,11 @@ function Farmer({ gs }) {
     <ProceduralFarmer />
   );
 
+  // NB: no `position` prop here — React would re-apply it on every requestRender
+  // and snap him to the target tile, defeating the useFrame glide. useFrame owns
+  // the position (seeded once on its first run).
   return (
-    <group ref={ref} position={[gx(gs.farmerPos.x), 0, gz(gs.farmerPos.y)]}>
+    <group ref={ref}>
       {dressed}
       {gs.speechBubble && (
         <Html position={[0, 1.45, 0]} center zIndexRange={[30, 10]} style={{ pointerEvents: 'none' }}>
