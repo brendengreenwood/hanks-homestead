@@ -1,355 +1,525 @@
-/* HUD overlay — sits above the r3f canvas. The root passes through pointer
-   events so the 3D world stays interactive; individual widgets re-enable them. */
+/* ============================================================
+   Hank's Homestead HUD — "cozy farmstead" theme
+   Wood + parchment almanac look. Sits above the r3f canvas; the
+   root passes pointer events through, widgets opt back in.
+   Seasonal accent comes in via --season* (set in Hud.jsx).
+   ============================================================ */
 .hud {
+  --wood-dark: #43290f;
+  --wood: #6b4423;
+  --wood-light: #a9743f;
+  --parch: #f7ecd2;
+  --parch-2: #ecd8ac;
+  --parch-well: #e3cd9c;
+  --ink: #43301e;
+  --ink-soft: #856237;
+  --gold: #c8902b;
+  --barn: #b5432f;
+  --leaf: #5f8a37;
+
+  --font-display: 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', Georgia, serif;
+  --font-ui: system-ui, -apple-system, 'Segoe UI', sans-serif;
+
   position: absolute;
   inset: 0;
   pointer-events: none;
-  font-family: system-ui, sans-serif;
+  font-family: var(--font-ui);
+  color: var(--ink);
   user-select: none;
   z-index: 10;
 }
 .hud button {
   pointer-events: auto;
   cursor: pointer;
-  font-family: inherit;
+  font-family: var(--font-ui);
+  -webkit-tap-highlight-color: transparent;
 }
 
-.world-label {
-  background: rgba(0, 0, 0, 0.6);
-  color: #fff;
-  font: bold 10px system-ui, sans-serif;
-  padding: 2px 6px;
-  border-radius: 4px;
-  white-space: nowrap;
+/* ---- reusable surfaces ---------------------------------- */
+/* Parchment panel inside a chunky wood frame. */
+.hud .panel,
+.inventory,
+.action-bar,
+.child-panel,
+.shop-panel,
+.modal,
+.season-chip,
+.gold-display,
+.speech,
+.notification {
+  background:
+    radial-gradient(120% 100% at 50% 0%, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0) 60%),
+    linear-gradient(180deg, var(--parch) 0%, var(--parch-2) 100%);
+  border: 3px solid var(--wood-dark);
+  border-radius: 14px;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.55),
+    inset 0 0 0 2px rgba(169, 116, 63, 0.35),
+    0 5px 0 rgba(67, 41, 15, 0.45),
+    0 12px 24px rgba(0, 0, 0, 0.4);
 }
 
+/* Wooden button base (action / crop / shop pills). */
+.action-cell,
+.crop-cell,
+.shop-btn,
+.icon-btn,
+.sell-item,
+.shop-row button,
+.modal-actions button {
+  background: linear-gradient(180deg, #b27f4d 0%, #8a5930 100%);
+  border: 2px solid var(--wood-dark);
+  border-radius: 11px;
+  color: #fff8ec;
+  font-weight: 700;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.4);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.28),
+    0 4px 0 var(--wood-dark),
+    0 6px 9px rgba(0, 0, 0, 0.32);
+  transition: transform 0.06s ease, filter 0.1s ease, box-shadow 0.06s ease;
+}
+.action-cell:hover,
+.crop-cell:hover,
+.shop-btn:hover,
+.icon-btn:hover,
+.sell-item:hover,
+.shop-row button:not(:disabled):hover,
+.modal-actions button:not(:disabled):hover {
+  filter: brightness(1.08) saturate(1.05);
+}
+.action-cell:active,
+.crop-cell:active,
+.shop-btn:active,
+.icon-btn:active,
+.sell-item:active,
+.shop-row button:not(:disabled):active,
+.modal-actions button:not(:disabled):active {
+  transform: translateY(3px);
+  box-shadow:
+    inset 0 2px 3px rgba(0, 0, 0, 0.3),
+    0 1px 0 var(--wood-dark);
+}
+
+/* ---- title ---------------------------------------------- */
 .hud-title {
   position: absolute;
-  top: 12px;
-  right: 110px;
-  color: #78350f;
-  font-weight: bold;
-  font-size: 18px;
-  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5);
+  top: 14px;
+  right: 116px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 20px;
+  letter-spacing: 0.3px;
+  color: #5a3413;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5), 0 2px 4px rgba(0, 0, 0, 0.25);
 }
 
+/* ---- season sign (top-left) ----------------------------- */
 .season-chip {
   position: absolute;
-  top: 10px;
-  left: 10px;
-  padding: 6px 14px;
-  border-radius: 4px;
-  color: #fff;
-  font-weight: bold;
-  font-size: 12px;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px 8px;
+  border-radius: 12px;
+  border-bottom: 4px solid var(--season, var(--leaf));
+}
+.season-icon { font-size: 16px; }
+.season-name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--ink);
 }
 
+/* ---- top-right ------------------------------------------ */
 .topright {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: 12px;
+  right: 12px;
   display: flex;
-  gap: 6px;
+  gap: 8px;
 }
-.shop-btn {
-  background: #fef9c3;
-  border: 1px solid #ca8a04;
-  color: #78350f;
-  font-weight: bold;
-  font-size: 12px;
-  padding: 6px 10px;
-  border-radius: 4px;
+.shop-btn { padding: 8px 12px; font-size: 13px; }
+.shop-btn.active {
+  background: linear-gradient(180deg, var(--season-2, #c98a2c), var(--season-deep, #8a5930));
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.35),
+    0 0 0 3px var(--season-soft, rgba(255, 255, 255, 0.25)),
+    0 4px 0 var(--wood-dark),
+    0 6px 9px rgba(0, 0, 0, 0.32);
 }
-.shop-btn.active { background: #eab308; border-width: 2px; }
-.icon-btn {
-  background: #f3f4f6;
-  border: 1px solid #9ca3af;
-  color: #4a3728;
-  width: 28px;
-  border-radius: 4px;
-  font-size: 14px;
-}
+.icon-btn { width: 36px; font-size: 16px; padding: 0; }
 
-.panel {
-  pointer-events: auto;
-  background: #f5f0e6;
-  border: 1px solid #8b7355;
-  border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
+/* ---- shop panel ----------------------------------------- */
 .shop-panel {
   position: absolute;
-  top: 48px;
-  right: 10px;
-  width: 220px;
-  padding: 10px;
+  top: 56px;
+  right: 12px;
+  width: 232px;
+  padding: 12px;
 }
 .panel-head {
   display: flex;
   justify-content: space-between;
-  font-weight: bold;
-  color: #4a3728;
-  margin-bottom: 6px;
+  align-items: center;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--ink);
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 2px dashed rgba(107, 68, 35, 0.4);
 }
-.gold { color: #d4a017; font-weight: bold; }
+.gold { color: var(--gold); font-weight: 700; }
 .shop-row {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 3px 0;
-  font-size: 12px;
-  color: #4a3728;
+  gap: 8px;
+  padding: 4px 2px;
+  font-size: 13px;
+  color: var(--ink);
 }
-.shop-row .shop-name { flex: 1; }
-.shop-row .shop-price { color: #8b7355; }
-.shop-row button {
-  background: #22c55e;
-  color: #fff;
-  border: none;
-  border-radius: 3px;
-  font-weight: bold;
-  font-size: 10px;
-  width: 26px;
-  height: 20px;
+.shop-row .shop-icon { font-size: 15px; }
+.shop-row .shop-name { flex: 1; font-weight: 600; }
+.shop-row .shop-price { color: var(--ink-soft); font-size: 12px; }
+.shop-row button { width: 30px; height: 24px; border-radius: 8px; font-size: 11px; }
+.shop-row button:disabled {
+  background: #b9a988;
+  border-color: #8a7a5c;
+  color: #efe6d2;
+  box-shadow: none;
+  cursor: not-allowed;
+  opacity: 0.7;
 }
-.shop-row button:disabled { background: #ccc; cursor: not-allowed; }
 
+/* ---- inventory (left-center) ---------------------------- */
 .inventory {
   position: absolute;
-  left: 10px;
+  left: 12px;
   top: 50%;
   transform: translateY(-50%);
-  background: rgba(0, 0, 0, 0.85);
-  border: 2px solid #a78bfa;
-  border-radius: 8px;
-  padding: 8px;
+  padding: 10px 9px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 7px;
 }
-.inv-head { color: #e9d5ff; font-weight: bold; font-size: 10px; text-align: center; }
+.inv-head {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--ink);
+  text-align: center;
+  padding-bottom: 4px;
+}
 .inv-item {
-  width: 44px;
-  height: 44px;
-  border: 1px solid rgba(100, 100, 100, 0.5);
-  border-radius: 4px;
-  background: rgba(40, 40, 40, 0.9);
+  width: 46px;
+  height: 46px;
+  border-radius: 9px;
+  background: linear-gradient(180deg, var(--parch-well), #d6bd87);
+  border: 2px solid rgba(67, 41, 15, 0.55);
+  box-shadow: inset 0 2px 4px rgba(67, 41, 15, 0.3);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
 }
-.inv-item.empty { opacity: 0.35; }
-.inv-icon { font-size: 20px; }
-.inv-count { color: #fff; font-weight: bold; font-size: 11px; }
+.inv-item.empty { opacity: 0.45; }
+.inv-icon { font-size: 21px; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.25)); }
+.inv-count { color: var(--ink); font-weight: 700; font-size: 11px; margin-top: -2px; }
 
+/* ---- speech & notification ------------------------------ */
 .speech {
   position: absolute;
-  top: 90px;
+  top: 92px;
   left: 50%;
   transform: translateX(-50%);
-  background: #fff;
-  border: 2px solid #374151;
-  border-radius: 8px;
-  padding: 6px 14px;
-  font-size: 12px;
-  color: #374151;
-  max-width: 60%;
+  padding: 9px 16px;
+  font-family: var(--font-display);
+  font-size: 13px;
+  color: var(--ink);
+  max-width: 56%;
   text-align: center;
+  border-radius: 16px;
 }
-
+.speech::after {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 7px solid transparent;
+  border-top-color: var(--wood-dark);
+}
 .notification {
   position: absolute;
-  top: 50px;
+  top: 52px;
   left: 50%;
   transform: translateX(-50%);
-  padding: 8px 18px;
-  border-radius: 6px;
-  color: #fff;
-  font-weight: bold;
-  font-size: 12px;
-  background: #3b82f6;
+  padding: 9px 20px;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--ink);
+  border-radius: 12px;
+  border-left: 7px solid var(--season, var(--leaf));
 }
-.notification.success { background: #22c55e; }
-.notification.error { background: #ef4444; }
+.notification.success { border-left-color: var(--leaf); }
+.notification.error { border-left-color: var(--barn); }
 
+/* ---- bottom-left: gold + day ---------------------------- */
 .botleft {
   position: absolute;
-  bottom: 12px;
-  left: 12px;
+  bottom: 14px;
+  left: 14px;
   display: flex;
   align-items: center;
   gap: 12px;
 }
 .gold-display {
-  background: #fffbeb;
-  border: 1px solid #d97706;
-  color: #d4a017;
-  font-weight: bold;
-  font-size: 14px;
-  padding: 6px 12px;
-  border-radius: 4px;
+  padding: 7px 14px;
+  border-radius: 12px;
+  color: var(--gold);
+  font-weight: 800;
+  font-size: 15px;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
 }
-.day-display { color: #8b7355; font-size: 12px; }
+.day-display {
+  font-family: var(--font-display);
+  color: #f3e6c8;
+  font-size: 14px;
+  font-weight: 700;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+}
 
+/* ---- action bar (bottom-center) ------------------------- */
 .action-bar {
   position: absolute;
-  bottom: 24px;
+  bottom: 22px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  gap: 8px;
+  gap: 10px;
   padding: 12px;
-  background: rgba(0, 0, 0, 0.75);
-  border: 3px solid #22c55e;
-  border-radius: 8px;
 }
 .action-cell {
-  width: 56px;
-  height: 56px;
-  background: rgba(35, 35, 35, 0.9);
-  border: 2px solid rgba(120, 120, 120, 0.5);
-  border-radius: 6px;
-  color: #fff;
+  width: 58px;
+  height: 58px;
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 1px;
 }
-.action-cell.active { border-width: 3px; }
-.action-icon { font-size: 26px; }
-.action-name { font-size: 10px; font-weight: bold; }
-.keybind { position: absolute; top: 3px; left: 5px; font-size: 10px; opacity: 0.6; }
+.action-cell.active {
+  background: linear-gradient(180deg, var(--season, #5f8a37), var(--season-deep, #3f5e23));
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.4),
+    0 0 0 3px rgba(255, 255, 255, 0.55),
+    0 0 14px 2px var(--season, #5f8a37),
+    0 4px 0 var(--wood-dark),
+    0 6px 9px rgba(0, 0, 0, 0.32);
+}
+.action-icon { font-size: 26px; line-height: 1; }
+.action-name { font-size: 10px; font-weight: 700; letter-spacing: 0.3px; }
+.keybind {
+  position: absolute;
+  top: 3px;
+  left: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  opacity: 0.65;
+}
 
+/* ---- child panels (crop selector / sell) ---------------- */
 .child-panel {
   position: absolute;
-  bottom: 96px;
+  bottom: 100px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(15, 15, 15, 0.95);
-  border: 2px solid #16a34a;
-  border-radius: 8px;
-  padding: 10px;
+  padding: 11px;
 }
-.crop-panel { display: flex; gap: 6px; }
+.crop-panel { display: flex; gap: 8px; }
 .crop-cell {
-  width: 48px;
-  height: 48px;
-  background: rgba(45, 45, 45, 0.8);
-  border: 2px solid rgba(100, 100, 100, 0.5);
-  border-radius: 6px;
+  width: 50px;
+  height: 50px;
   position: relative;
 }
-.cell-icon { font-size: 22px; }
+.crop-cell.active {
+  background: linear-gradient(180deg, var(--season, #5f8a37), var(--season-deep, #3f5e23));
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.4),
+    0 0 0 3px rgba(255, 255, 255, 0.55),
+    0 0 12px 1px var(--season, #5f8a37),
+    0 4px 0 var(--wood-dark);
+}
+.cell-icon { font-size: 23px; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.3)); }
 .seed-badge {
   position: absolute;
-  bottom: 2px;
-  right: 2px;
-  min-width: 16px;
-  height: 16px;
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.85);
+  bottom: -3px;
+  right: -3px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  border-radius: 9px;
+  background: var(--ink);
+  border: 1.5px solid #f7ecd2;
   color: #fff;
   font-size: 10px;
-  font-weight: bold;
+  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.seed-badge.out { background: rgba(120, 30, 30, 0.9); color: rgba(200, 200, 200, 0.6); }
+.seed-badge.out { background: var(--barn); }
 
-.sell-panel { min-width: 200px; }
-.sell-head { color: #fff; font-weight: bold; font-size: 11px; text-align: center; margin-bottom: 8px; }
+.sell-panel { min-width: 220px; }
+.sell-head {
+  font-family: var(--font-display);
+  color: var(--ink);
+  font-weight: 700;
+  font-size: 14px;
+  text-align: center;
+  margin-bottom: 9px;
+}
 .sell-row-wrap { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 .sell-item {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  background: rgba(40, 40, 40, 0.8);
-  border: 1px solid rgba(100, 100, 100, 0.5);
-  border-radius: 6px;
-  color: #fff;
+  gap: 3px;
+  padding: 7px 12px;
   font-size: 12px;
-  padding: 6px 10px;
+  align-items: center;
 }
-.sell-empty { color: rgba(255, 255, 255, 0.6); font-size: 12px; text-align: center; }
+.sell-item .gold { color: #ffe9a8; }
+.sell-empty { color: var(--ink-soft); font-size: 13px; text-align: center; font-style: italic; }
 
+/* ---- Next Turn (bottom-right) --------------------------- */
 .next-turn {
   position: absolute;
-  bottom: 20px;
-  right: 20px;
-  width: 90px;
-  height: 90px;
+  bottom: 22px;
+  right: 22px;
+  width: 92px;
+  height: 92px;
   border-radius: 50%;
-  border: 3px solid #fff;
+  border: 4px solid var(--wood-dark);
   color: #fff;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+  gap: 1px;
+  background:
+    radial-gradient(circle at 36% 30%, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0) 55%),
+    linear-gradient(160deg, var(--season-2, #16a34a), var(--season-deep, #14532d));
+  box-shadow:
+    inset 0 3px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -4px 6px rgba(0, 0, 0, 0.3),
+    0 5px 0 var(--wood-dark),
+    0 9px 16px rgba(0, 0, 0, 0.45);
+  transition: transform 0.07s ease, filter 0.1s ease, box-shadow 0.07s ease;
 }
-.next-turn .arrow { font-size: 28px; font-weight: bold; line-height: 1; }
-.next-turn .next-label { font-size: 12px; font-weight: bold; }
+.next-turn:hover { filter: brightness(1.08); }
+.next-turn:active {
+  transform: translateY(3px);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.4), 0 2px 0 var(--wood-dark);
+}
+.next-turn .arrow {
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1;
+  text-shadow: 0 2px 3px rgba(0, 0, 0, 0.4);
+}
+.next-turn .next-label {
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
 
+/* ---- winter sell modal ---------------------------------- */
 .modal-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: radial-gradient(circle at 50% 40%, rgba(40, 24, 10, 0.55), rgba(0, 0, 0, 0.78));
   display: flex;
   align-items: center;
   justify-content: center;
   pointer-events: auto;
 }
 .modal {
-  width: 420px;
-  background: #1a1a2e;
-  border: 3px solid #3b82f6;
-  border-radius: 12px;
-  padding: 20px;
-  color: #fff;
+  width: 440px;
+  padding: 22px;
+  border-width: 4px;
 }
-.modal h2 { text-align: center; margin: 0 0 4px; font-size: 18px; }
-.modal-sub { text-align: center; color: #aaa; font-size: 12px; margin: 0 0 14px; }
-.modal-rows { display: flex; flex-direction: column; gap: 6px; }
+.modal h2 {
+  text-align: center;
+  margin: 0 0 4px;
+  font-family: var(--font-display);
+  font-size: 22px;
+  color: var(--barn);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+.modal-sub { text-align: center; color: var(--ink-soft); font-size: 13px; margin: 0 0 16px; }
+.modal-rows { display: flex; flex-direction: column; gap: 7px; }
 .modal-row {
   display: grid;
-  grid-template-columns: 28px 1fr 50px 80px 60px;
+  grid-template-columns: 28px 1fr 52px 84px 62px;
   align-items: center;
   gap: 8px;
-  background: rgba(30, 41, 59, 0.8);
-  border: 1px solid rgba(100, 116, 139, 0.5);
-  border-radius: 6px;
-  padding: 8px 12px;
-  color: #fff;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 2px solid rgba(67, 41, 15, 0.4);
+  background: linear-gradient(180deg, var(--parch-well), #d6bd87);
+  box-shadow: inset 0 2px 4px rgba(67, 41, 15, 0.22);
+  color: var(--ink);
   text-align: left;
+  font-family: var(--font-ui);
 }
-.modal-row.empty { opacity: 0.4; }
-.mr-icon { font-size: 20px; }
-.mr-count { color: #94a3b8; text-align: center; }
-.mr-each { color: #d4a017; font-size: 11px; text-align: center; }
-.mr-total { color: #22c55e; font-weight: bold; text-align: right; }
+.modal-row:not(.empty):hover { filter: brightness(1.04); }
+.modal-row.empty { opacity: 0.45; cursor: default; }
+.mr-icon { font-size: 21px; }
+.mr-name { font-weight: 700; }
+.mr-count { color: var(--ink-soft); text-align: center; }
+.mr-each { color: var(--gold); font-size: 11px; text-align: center; font-weight: 600; }
+.mr-total { color: var(--leaf); font-weight: 800; text-align: right; }
 .modal-total {
   display: flex;
   justify-content: space-between;
-  background: #1e293b;
-  border-radius: 6px;
-  padding: 10px 14px;
-  margin: 14px 0;
-  color: #94a3b8;
+  align-items: center;
+  border-radius: 10px;
+  padding: 11px 14px;
+  margin: 16px 0;
+  background: rgba(67, 41, 15, 0.1);
+  border: 1px dashed rgba(67, 41, 15, 0.4);
+  color: var(--ink-soft);
   font-size: 13px;
+  font-weight: 600;
 }
-.modal-total .gold { font-size: 16px; }
+.modal-total .gold { font-family: var(--font-display); font-size: 17px; }
 .modal-actions { display: flex; gap: 10px; }
-.modal-actions button {
-  flex: 1;
-  height: 36px;
-  border: none;
-  border-radius: 6px;
-  color: #fff;
-  font-weight: bold;
-  font-size: 13px;
+.modal-actions button { flex: 1; height: 40px; font-size: 14px; }
+.sell-all { background: linear-gradient(180deg, #6fa83f, #4e7029); }
+.sell-all:disabled {
+  background: #b9a988;
+  border-color: #8a7a5c;
+  color: #efe6d2;
+  box-shadow: none;
+  cursor: not-allowed;
 }
-.sell-all { background: #16a34a; }
-.sell-all:disabled { background: #374151; color: #666; cursor: not-allowed; }
+.continue { background: linear-gradient(180deg, var(--season-2, #2563eb), var(--season-deep, #1d4ed8)); }
+
+/* world-space building labels (drei Html) */
+.world-label {
+  background: linear-gradient(180deg, var(--parch, #f7ecd2), var(--parch-2, #ecd8ac));
+  color: #43301e;
+  font: 700 10px var(--font-display, Georgia, serif);
+  padding: 3px 8px;
+  border-radius: 7px;
+  border: 2px solid #43290f;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+  white-space: nowrap;
+}
