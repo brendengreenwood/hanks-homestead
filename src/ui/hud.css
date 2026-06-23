@@ -534,59 +534,151 @@
 .continue { background: linear-gradient(180deg, var(--season-2, #2563eb), var(--season-deep, #1d4ed8)); }
 
 /* ============================================================
-   Mobile / touch
+   Mobile / touch — centered D-pad cluster with a center Act button.
+   Tap center = act; long-press = action/crop menu.
    ============================================================ */
 .touch-controls { display: none; }
 
-.dpad {
-  position: absolute;
-  left: calc(16px + env(safe-area-inset-left));
-  bottom: calc(18px + env(safe-area-inset-bottom));
-  width: 138px;
-  height: 138px;
-}
+/* shared wooden look for all touch buttons */
 .dpad-btn,
-.act-btn {
-  position: absolute;
+.act-btn,
+.tc-action,
+.tc-crop,
+.tc-done {
   background: linear-gradient(180deg, #b27f4d 0%, #8a5930 100%);
   border: 2px solid var(--wood-dark);
   color: #fff8ec;
-  font-size: 18px;
+  font-weight: 700;
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.4);
   box-shadow:
     inset 0 2px 0 rgba(255, 255, 255, 0.35),
     inset 0 -3px 0 rgba(0, 0, 0, 0.28),
     0 4px 0 var(--wood-dark),
-    0 6px 9px rgba(0, 0, 0, 0.32);
+    0 5px 8px rgba(0, 0, 0, 0.3);
   transition: transform 0.06s ease, filter 0.1s ease, box-shadow 0.06s ease;
   touch-action: none;
 }
-.dpad-btn { width: 46px; height: 46px; border-radius: 11px; }
-.dpad-btn.up { top: 0; left: 46px; }
-.dpad-btn.down { bottom: 0; left: 46px; }
-.dpad-btn.left { left: 0; top: 46px; }
-.dpad-btn.right { right: 0; top: 46px; }
+.dpad-btn:active,
+.act-btn:active,
+.tc-action:active,
+.tc-crop:active,
+.tc-done:active {
+  transform: translateY(2px);
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.3), 0 1px 0 var(--wood-dark);
+}
+
+/* the cluster: 3x3 grid, arrows in a cross, Act in the center cell */
+.dpad-cluster {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  display: grid;
+  grid-template-columns: repeat(3, 52px);
+  grid-template-rows: repeat(3, 52px);
+  gap: 7px;
+}
+.dpad-btn { border-radius: 12px; font-size: 18px; }
+.dpad-btn.up { grid-area: 1 / 2; }
+.dpad-btn.left { grid-area: 2 / 1; }
+.dpad-btn.right { grid-area: 2 / 3; }
+.dpad-btn.down { grid-area: 3 / 2; }
 .act-btn {
-  right: calc(18px + env(safe-area-inset-right));
-  bottom: calc(102px + env(safe-area-inset-bottom));
-  width: 66px;
-  height: 66px;
+  grid-area: 2 / 2;
   border-radius: 50%;
-  font-size: 30px;
+  font-size: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0) 55%),
+    linear-gradient(160deg, var(--season-2, #16a34a), var(--season-deep, #14532d));
+}
+
+/* long-press menu */
+.tc-backdrop {
+  position: fixed;
+  inset: 0;
+  pointer-events: auto;
+  background: rgba(0, 0, 0, 0.25);
+}
+.tc-menu {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(192px + env(safe-area-inset-bottom));
+  pointer-events: auto;
+  max-width: 92vw;
+  padding: 12px;
+  background:
+    radial-gradient(120% 100% at 50% 0%, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0) 60%),
+    linear-gradient(180deg, var(--parch) 0%, var(--parch-2) 100%);
+  border: 3px solid var(--wood-dark);
+  border-radius: 14px;
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.55), 0 8px 22px rgba(0, 0, 0, 0.45);
+}
+.tc-menu-actions { display: flex; gap: 8px; justify-content: center; }
+.tc-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 66px;
+  padding: 8px 4px;
+  border-radius: 11px;
+}
+.tc-menu-crops {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 2px dashed rgba(107, 68, 35, 0.4);
+}
+.tc-crop {
+  position: relative;
+  width: 50px;
+  height: 50px;
+  border-radius: 11px;
+}
+.tc-action.active,
+.tc-crop.active {
+  background: linear-gradient(180deg, var(--season, #5f8a37), var(--season-deep, #3f5e23));
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.4),
+    0 0 0 3px rgba(255, 255, 255, 0.55),
+    0 4px 0 var(--wood-dark);
+}
+.tc-ico { font-size: 24px; line-height: 1; }
+.tc-name { font-size: 11px; }
+.tc-seed {
+  position: absolute;
+  bottom: -3px;
+  right: -3px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  border-radius: 9px;
+  background: var(--ink);
+  border: 1.5px solid #f7ecd2;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.dpad-btn:active,
-.act-btn:active {
-  transform: translateY(3px);
-  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.3), 0 1px 0 var(--wood-dark);
-}
+.tc-seed.out { background: var(--barn); }
+.tc-done { margin-top: 10px; width: 100%; height: 36px; border-radius: 10px; }
 
 /* Show the on-screen controls + reflow the HUD for touch / portrait. */
 @media (pointer: coarse) {
   .touch-controls { display: block; }
   .hud-title { display: none; }
+  /* the long-press menu replaces the always-on action bar + crop selector */
+  .action-bar,
+  .child-panel { display: none; }
   .season-chip {
     top: calc(10px + env(safe-area-inset-top));
     left: calc(10px + env(safe-area-inset-left));
@@ -595,7 +687,7 @@
     top: calc(10px + env(safe-area-inset-top));
     right: calc(10px + env(safe-area-inset-right));
   }
-  /* gold/day move up under the season sign so the bottom-left is free for the d-pad */
+  /* gold/day move up under the season sign */
   .botleft {
     bottom: auto;
     top: calc(54px + env(safe-area-inset-top));
@@ -605,14 +697,6 @@
     transform: translateY(-50%) scale(0.82);
     transform-origin: left center;
   }
-  .action-bar { bottom: calc(96px + env(safe-area-inset-bottom)); gap: 6px; padding: 9px; }
-  .action-cell { width: 52px; height: 52px; }
-  .child-panel { bottom: calc(170px + env(safe-area-inset-bottom)); padding: 8px; }
-  /* tighten the crop selector so 5 cells fit a narrow screen without crowding
-     the inventory (left) or the Act button (right) */
-  .crop-panel { gap: 5px; }
-  .crop-cell { width: 44px; height: 44px; }
-  .cell-icon { font-size: 20px; }
   .next-turn {
     width: 76px;
     height: 76px;

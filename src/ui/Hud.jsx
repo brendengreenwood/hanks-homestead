@@ -141,21 +141,112 @@ export default function Hud({ gs, actions }) {
         <span className="next-label">NEXT</span>
       </button>
 
-      {/* On-screen touch controls (shown on touch devices via CSS) */}
-      <div className="touch-controls">
-        <div className="dpad">
-          <button className="dpad-btn up" onClick={() => actions.move('up')} aria-label="Move up">▲</button>
-          <button className="dpad-btn left" onClick={() => actions.move('left')} aria-label="Move left">◀</button>
-          <button className="dpad-btn right" onClick={() => actions.move('right')} aria-label="Move right">▶</button>
-          <button className="dpad-btn down" onClick={() => actions.move('down')} aria-label="Move down">▼</button>
-        </div>
-        <button className="act-btn" onClick={actions.act} aria-label="Do action">
-          {curAction?.icon || '✋'}
-        </button>
-      </div>
+      {/* On-screen touch controls: centered D-pad with a center Act button.
+          Tap center = act; long-press = action/crop menu. (shown on touch via CSS) */}
+      <TouchControls
+        gs={gs}
+        actions={actions}
+        actionList={actionList}
+        curAction={curAction}
+        cropEntries={cropEntries}
+      />
 
       {/* Winter sell modal */}
       {gs.showSellModal && <SellModal gs={gs} actions={actions} />}
+    </div>
+  );
+}
+
+function TouchControls({ gs, actions, actionList, curAction, cropEntries }) {
+  const [menuOpen, setMenuOpen] = React.useState(false);
+  const timer = React.useRef(null);
+  const longPressed = React.useRef(false);
+
+  const startPress = () => {
+    longPressed.current = false;
+    timer.current = setTimeout(() => {
+      longPressed.current = true;
+      setMenuOpen(true);
+    }, 420);
+  };
+  const endPress = () => {
+    if (timer.current) {
+      clearTimeout(timer.current);
+      timer.current = null;
+    }
+    if (!longPressed.current) actions.act(); // it was a tap
+  };
+  const cancelPress = () => {
+    if (timer.current) {
+      clearTimeout(timer.current);
+      timer.current = null;
+    }
+  };
+
+  const pickAction = (id) => {
+    actions.selectAction(id);
+    if (id !== 'plant') setMenuOpen(false); // plant stays open to choose a crop
+  };
+  const pickCrop = (id) => {
+    actions.selectCrop(id);
+    setMenuOpen(false);
+  };
+
+  return (
+    <div className="touch-controls">
+      {menuOpen && <div className="tc-backdrop" onPointerDown={() => setMenuOpen(false)} />}
+      {menuOpen && (
+        <div className="tc-menu">
+          <div className="tc-menu-actions">
+            {actionList.map((a) => (
+              <button
+                key={a.id}
+                className={`tc-action ${gs.selectedAction === a.id ? 'active' : ''}`}
+                onClick={() => pickAction(a.id)}
+              >
+                <span className="tc-ico">{a.icon}</span>
+                <span className="tc-name">{a.name}</span>
+              </button>
+            ))}
+          </div>
+          {gs.selectedAction === 'plant' && (
+            <div className="tc-menu-crops">
+              {cropEntries.map(([id, c]) => {
+                const seeds = gs.inventory[`${id}_seeds`] || 0;
+                return (
+                  <button
+                    key={id}
+                    className={`tc-crop ${gs.selectedCrop === id ? 'active' : ''}`}
+                    onClick={() => pickCrop(id)}
+                  >
+                    <span className="tc-ico">{c.icon}</span>
+                    <span className={`tc-seed ${seeds > 0 ? '' : 'out'}`}>{seeds}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          <button className="tc-done" onClick={() => setMenuOpen(false)}>Done</button>
+        </div>
+      )}
+
+      <div className="dpad-cluster">
+        <button className="dpad-btn up" onClick={() => actions.move('up')} aria-label="Move up">▲</button>
+        <button className="dpad-btn left" onClick={() => actions.move('left')} aria-label="Move left">◀</button>
+        <button
+          className="act-btn"
+          onPointerDown={startPress}
+          onPointerUp={endPress}
+          onPointerLeave={cancelPress}
+          onPointerCancel={cancelPress}
+          onContextMenu={(e) => e.preventDefault()}
+          aria-label="Do action (long-press for menu)"
+        >
+          {curAction?.icon || '✋'}
+        </button>
+        <button className="dpad-btn right" onClick={() => actions.move('right')} aria-label="Move right">▶</button>
+        <button className="dpad-btn down" onClick={() => actions.move('down')} aria-label="Move down">▼</button>
+      </div>
     </div>
   );
 }
