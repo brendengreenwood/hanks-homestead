@@ -8,17 +8,78 @@ Tell Claude "pick up X from the backlog" and it'll grab one.
 
 ---
 
-## 🌱 Gameplay & Systems
-- [ ] (P1) Save / Load — persist `gameState` to `localStorage`, restore on load
-- [ ] Sprinkler / automation building that auto-waters nearby tiles each turn
+## 🗺️ Roadmap: The Farm Economy (in design)
+
+The big arc — turn the abstract turn-loop into a living farm economy where you
+time the market: sell some of the harvest into the cheap glut, store the rest,
+and sell into the rising market before the next harvest.
+
+**Locked directions**
+- **Time:** day-tick. "Next" advances **one day**; each season ≈ **14 days** (year ≈ 56 days).
+- **Marketplace:** build all three tiers, **phased** — spot → forward contracts → full futures.
+- **Progression:** **phased** — buy land plots + speed upgrades first, automation later.
+
+**Build order** (each epic builds on the previous; #1 unblocks everything):
+
+### Epic 1 — Calendar & time foundation
+- [ ] Day-based clock: `year` / `season` / `dayOfSeason` derived from a total-day counter; `SEASON_LENGTH ≈ 14`
+- [ ] "Next Day" advances one day; move season-transition events to season boundaries (not every press)
+- [ ] Crops grow per day (remove the instant-mature-on-season-change hack); `growTime` measured in days
+- [ ] Rework action gating: drive actions off crop state (needs water / ready to harvest) instead of rigid per-season locks — *open design Q*
+- [ ] HUD date display (Year / Season / Day X of N); update season chip
+- [ ] (pairs well) day/night or seasonal sun angle tied to the clock
+
+### Epic 2 — Crop growth & care
+- [ ] Per-crop `growTime` in days + plantable seasons
+- [ ] Moisture/fertility model: water decays over days; neglect slows growth or withers the crop
+- [ ] Map growth-stage models to progress %; withered visual
+- *open Q: how punishing is neglect — slowdown vs death?*
+
+### Epic 3 — Storage
+- [ ] Harvest flows into storage; sell from storage on your own schedule
+- [ ] Capacity tied to silo/elevator buildings (upgrade hook); overflow handling
+- [ ] Per-crop spoilage / shelf life (grain keeps, produce spoils) → creates pressure to sell
+- [ ] Storage HUD: quantities, capacity bar, spoilage timers
+
+### Epic 4 — Marketplace · spot pricing
+- [ ] Daily price per commodity: seasonal curve (cheap at harvest glut → climbing toward next harvest) + noise/random walk
+- [ ] Price history + chart; trend indicator
+- [ ] Elevator UI: sell from storage at spot price; replace fixed `sellPrice` with dynamic price (base = long-run mean)
+- *open Q: does dumping a big sell move the price (market impact)?*
+
+### Epic 5 — Marketplace · forward contracts
+- [ ] Offered contracts: deliver qty by a date at a locked price (premium/discount to expected spot)
+- [ ] Fulfillment on the date; penalty for non-delivery
+- [ ] Contracts UI (available / accepted / deadlines)
+
+### Epic 6 — Marketplace · futures & speculation
+- [ ] Futures curve across future dates; tradable positions with expiry
+- [ ] Margin + mark-to-market P&L; close positions early
+- [ ] Consider an "advanced market" toggle so it stays approachable
+- *(heaviest epic — balance carefully)*
+
+### Epic 7 — Progression · land + speed
+- [ ] Buyable field parcels adjacent to the field; purchasing unlocks more farmable area; cost scaling
+- [ ] Equipment/tools: faster walk, faster action cadence, bigger / multi-tile action radius (tractor)
+- [ ] Gold balancing so the money loop has meaningful sinks
+
+### Epic 8 — Progression · automation
+- [ ] Tractors/equipment that auto-perform row ops (till / plant / harvest); sprinkler auto-water
+- [ ] Automation buildings; possible fuel/upkeep cost
+- *(depends on a working money loop from the marketplace)*
+
+### Cross-cutting
+- [ ] **(P1) Save/Load lands early** — state is about to grow a lot and longer games need persistence
+- [ ] Ongoing economy / balance tuning
+
+---
+
+## 🌱 Gameplay & Systems (standalone ideas)
 - [ ] More crops (each needs a growth-stage model + `CROPS` entry)
 - [ ] More buildings: chicken coop, well, market stall, fences around the field
-- [ ] Tool / farm upgrades (bigger plant radius, faster walk, more seeds)
-- [ ] Economy & balance pass (prices, starting gold, upgrade costs)
 - [ ] Crop quality / fertilizer tiers beyond the current feed bonus
 
 ## 🎨 World & Visuals
-- [ ] (P2) Day/night lighting cycle — move the sun, warm glow in house windows at night
 - [ ] Weather particles — rain in spring/summer, snow in winter
 - [ ] Seasonal world dressing — snow cover in winter, autumn leaf tints in fall
 - [ ] Tilled-soil rows under crops (kit has `crops_dirtRow` / `crops_dirtSingle`)
