@@ -11,14 +11,24 @@ export default function Hud({ gs, actions }) {
   const harvested = cropEntries.map(([id, c]) => ({ id, c, count: gs.inventory[id] || 0 }));
   const totalHarvested = harvested.reduce((s, h) => s + h.count, 0);
 
+  // Seasonal accent flows through CSS variables so the wood/parchment theme stays
+  // constant while the accent (rings, glows, the Next button) tints per season.
+  const seasonVars = {
+    '--season': sd.ui.primary,
+    '--season-2': sd.ui.secondary,
+    '--season-deep': sd.ui.border,
+    '--season-soft': sd.ui.bg,
+  };
+
   return (
-    <div className="hud">
+    <div className="hud" style={seasonVars}>
       {/* Title */}
-      <div className="hud-title">🌾 Hank's Homestead 🌾</div>
+      <div className="hud-title">🌾 Hank's Homestead</div>
 
       {/* Season (top-left) */}
-      <div className="season-chip" style={{ background: sd.ui.primary }}>
-        {sd.icon} {sd.name}
+      <div className="season-chip">
+        <span className="season-icon">{sd.icon}</span>
+        <span className="season-name">{sd.name}</span>
       </div>
 
       {/* Top-right controls */}
@@ -34,7 +44,7 @@ export default function Hud({ gs, actions }) {
         <div className="panel shop-panel">
           <div className="panel-head">
             <span>Buy Seeds</span>
-            <span className="gold">{gs.gold}g</span>
+            <span className="gold">🪙 {gs.gold}</span>
           </div>
           {cropEntries.map(([id, c]) => (
             <div className="shop-row" key={id}>
@@ -75,14 +85,13 @@ export default function Hud({ gs, actions }) {
 
       {/* Crop selector (plant) */}
       {gs.selectedAction === 'plant' && (
-        <div className="child-panel crop-panel" style={{ borderColor: SEASONS.spring.ui.secondary }}>
+        <div className="child-panel crop-panel">
           {cropEntries.map(([id, c]) => {
             const seeds = gs.inventory[`${id}_seeds`] || 0;
             return (
               <button
                 key={id}
                 className={`crop-cell ${gs.selectedCrop === id ? 'active' : ''}`}
-                style={gs.selectedCrop === id ? { borderColor: SEASONS.spring.ui.primary, background: SEASONS.spring.ui.bg } : undefined}
                 title={`${c.icon} ${c.name}`}
                 onClick={() => actions.selectCrop(id)}
               >
@@ -96,7 +105,7 @@ export default function Hud({ gs, actions }) {
 
       {/* Sell panel (winter inline) */}
       {gs.selectedAction === 'sell' && (
-        <div className="child-panel sell-panel" style={{ borderColor: SEASONS.winter.ui.primary }}>
+        <div className="child-panel sell-panel">
           <div className="sell-head">💰 Sell Your Harvest</div>
           {totalHarvested > 0 ? (
             <div className="sell-row-wrap">
@@ -114,12 +123,11 @@ export default function Hud({ gs, actions }) {
       )}
 
       {/* Action bar (bottom-center) */}
-      <div className="action-bar" style={{ borderColor: sd.ui.primary }}>
+      <div className="action-bar">
         {actionList.map((a, i) => (
           <button
             key={a.id}
             className={`action-cell ${gs.selectedAction === a.id ? 'active' : ''}`}
-            style={gs.selectedAction === a.id ? { borderColor: sd.ui.primary, background: sd.ui.bg } : undefined}
             onClick={() => actions.selectAction(a.id)}
           >
             <span className="keybind">{i + 1}</span>
@@ -130,11 +138,7 @@ export default function Hud({ gs, actions }) {
       </div>
 
       {/* Next Turn (bottom-right) */}
-      <button
-        className="next-turn"
-        style={{ background: `radial-gradient(circle at 35% 35%, ${sd.ui.secondary}, ${sd.ui.border})`, borderColor: sd.ui.primary }}
-        onClick={actions.advanceDay}
-      >
+      <button className="next-turn" onClick={actions.advanceDay}>
         <span className="arrow">→</span>
         <span className="next-label">NEXT</span>
       </button>
@@ -152,8 +156,8 @@ function SellModal({ gs, actions }) {
 
   return (
     <div className="modal-backdrop">
-      <div className="modal" style={{ borderColor: SEASONS.winter.ui.primary }}>
-        <h2 style={{ color: SEASONS.winter.ui.primary }}>❄️ Winter Market ❄️</h2>
+      <div className="modal">
+        <h2>❄️ Winter Market ❄️</h2>
         <p className="modal-sub">Sell your harvest before spring!</p>
 
         <div className="modal-rows">
@@ -182,11 +186,7 @@ function SellModal({ gs, actions }) {
           <button className="sell-all" disabled={totalItems === 0} onClick={actions.sellAll}>
             💰 Sell All ({totalValue}g)
           </button>
-          <button
-            className="continue"
-            style={{ background: SEASONS.winter.ui.primary }}
-            onClick={actions.closeSellModal}
-          >
+          <button className="continue" onClick={actions.closeSellModal}>
             Continue →
           </button>
         </div>
