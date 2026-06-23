@@ -209,22 +209,108 @@ function Ground({ grass }) {
 }
 
 // ============================================
-// BUILDINGS
+// BUILDINGS — procedural low-poly, flat-shaded to match the Nature Kit.
+// The kit has no barn/silo, so we model simple stylized ones.
 // ============================================
-function BuildingPlaceholder({ data }) {
-  const w = data.width;
-  const d = data.height;
+
+// A flat triangle, used to close off the barn's gable ends.
+function GableEnd({ width, rise, y, z, color }) {
+  const geo = useMemo(() => {
+    const hw = width / 2;
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute([-hw, 0, 0, hw, 0, 0, 0, rise, 0], 3));
+    g.setIndex([0, 1, 2]);
+    g.computeVertexNormals();
+    return g;
+  }, [width, rise]);
+  return (
+    <mesh geometry={geo} position={[0, y, z]} castShadow>
+      <meshStandardMaterial color={color} flatShading roughness={1} side={THREE.DoubleSide} />
+    </mesh>
+  );
+}
+
+function Barn() {
+  const W = 1.7; // width (x)
+  const D = 1.55; // depth (z)
+  const Hb = 0.9; // wall height
+  const rise = 0.6; // roof rise
+  const overhang = 0.12;
+  const run = W / 2 + overhang;
+  const angle = Math.atan2(rise, run);
+  const slabLen = Math.hypot(run, rise);
+  const wall = '#b0402c';
+  const roof = '#6f2c20';
+  const trim = '#efe6d2';
+
   return (
     <group>
-      <mesh position={[0, 0.45, 0]} castShadow>
-        <boxGeometry args={[w * 0.85, 0.9, d * 0.85]} />
-        <meshStandardMaterial color={data.color} roughness={0.9} />
+      {/* body */}
+      <mesh position={[0, Hb / 2, 0]} castShadow receiveShadow>
+        <boxGeometry args={[W, Hb, D]} />
+        <meshStandardMaterial color={wall} flatShading roughness={1} />
       </mesh>
-      {/* roof */}
-      <mesh position={[0, 1.05, 0]} rotation={[0, Math.PI / 4, 0]} castShadow>
-        <coneGeometry args={[w * 0.7, 0.5, 4]} />
-        <meshStandardMaterial color="#7F1D1D" flatShading />
+      {/* roof slabs */}
+      <mesh position={[-run / 2, Hb + rise / 2, 0]} rotation={[0, 0, angle]} castShadow>
+        <boxGeometry args={[slabLen, 0.07, D + overhang * 2]} />
+        <meshStandardMaterial color={roof} flatShading roughness={1} />
       </mesh>
+      <mesh position={[run / 2, Hb + rise / 2, 0]} rotation={[0, 0, -angle]} castShadow>
+        <boxGeometry args={[slabLen, 0.07, D + overhang * 2]} />
+        <meshStandardMaterial color={roof} flatShading roughness={1} />
+      </mesh>
+      {/* ridge cap */}
+      <mesh position={[0, Hb + rise, 0]} castShadow>
+        <boxGeometry args={[0.1, 0.08, D + overhang * 2]} />
+        <meshStandardMaterial color={roof} flatShading roughness={1} />
+      </mesh>
+      {/* gable end walls */}
+      <GableEnd width={W} rise={rise} y={Hb} z={D / 2 + 0.001} color={wall} />
+      <GableEnd width={W} rise={rise} y={Hb} z={-D / 2 - 0.001} color={wall} />
+      {/* big barn door + white trim + cross planks (front, +z) */}
+      <mesh position={[0, Hb * 0.42, D / 2 + 0.02]} castShadow>
+        <boxGeometry args={[0.62, Hb * 0.72, 0.04]} />
+        <meshStandardMaterial color={trim} flatShading roughness={1} />
+      </mesh>
+      {[0.5, -0.5].map((s) => (
+        <mesh key={s} position={[0, Hb * 0.42, D / 2 + 0.045]} rotation={[0, 0, s * 0.72]}>
+          <boxGeometry args={[0.05, 0.78, 0.02]} />
+          <meshStandardMaterial color={wall} flatShading roughness={1} />
+        </mesh>
+      ))}
+      {/* hayloft window in the gable */}
+      <mesh position={[0, Hb + rise * 0.45, D / 2 + 0.02]} castShadow>
+        <boxGeometry args={[0.2, 0.2, 0.04]} />
+        <meshStandardMaterial color={trim} flatShading roughness={1} />
+      </mesh>
+    </group>
+  );
+}
+
+function Silo() {
+  const r = 0.4;
+  const h = 1.5;
+  const body = '#d7d0bf';
+  const metal = '#9aa0a8';
+  return (
+    <group>
+      {/* tank */}
+      <mesh position={[0, h / 2, 0]} castShadow receiveShadow>
+        <cylinderGeometry args={[r, r, h, 16]} />
+        <meshStandardMaterial color={body} flatShading roughness={0.95} />
+      </mesh>
+      {/* domed cap */}
+      <mesh position={[0, h, 0]} castShadow>
+        <sphereGeometry args={[r, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2]} />
+        <meshStandardMaterial color={metal} flatShading metalness={0.2} roughness={0.6} />
+      </mesh>
+      {/* banding rings */}
+      {[0.4, 0.85, 1.25].map((yy) => (
+        <mesh key={yy} position={[0, yy, 0]} rotation={[Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[r + 0.015, 0.018, 6, 20]} />
+          <meshStandardMaterial color={metal} flatShading metalness={0.2} roughness={0.6} />
+        </mesh>
+      ))}
     </group>
   );
 }
@@ -237,12 +323,8 @@ function Buildings({ buildings }) {
     const cz = gz(b.y) + (data.height - 1) / 2;
     return (
       <group key={i} position={[cx, 0, cz]}>
-        <ModelOrPlaceholder
-          url={modelUrl(b.type === 'farmhouse' ? 'farmhouse' : 'silo')}
-          scale={1}
-          placeholder={<BuildingPlaceholder data={data} />}
-        />
-        <Html position={[0, 1.7, 0]} center style={{ pointerEvents: 'none' }}>
+        {b.type === 'farmhouse' ? <Barn /> : <Silo />}
+        <Html position={[0, 1.95, 0]} center style={{ pointerEvents: 'none' }}>
           <div className="world-label">{data.name}</div>
         </Html>
       </group>
