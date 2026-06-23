@@ -451,7 +451,7 @@ function Buildings({ buildings }) {
     return (
       <group key={i} position={[cx, 0, cz]}>
         {b.type === 'barn' ? <Barn /> : b.type === 'house' ? <House /> : <Silo />}
-        <Html position={[0, 1.95, 0]} center style={{ pointerEvents: 'none' }}>
+        <Html position={[0, 1.95, 0]} center zIndexRange={[8, 0]} style={{ pointerEvents: 'none' }}>
           <div className="world-label">{data.name}</div>
         </Html>
       </group>

@@ -612,8 +612,8 @@
   padding: 12px;
   background:
     radial-gradient(120% 100% at 50% 0%, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0) 60%),
-    linear-gradient(180deg, var(--parch) 0%, var(--parch-2) 100%);
-  border: 3px solid var(--wood-dark);
+    linear-gradient(180deg, var(--parch, #f7ecd2) 0%, var(--parch-2, #ecd8ac) 100%);
+  border: 3px solid var(--wood-dark, #43290f);
   border-radius: 14px;
   box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.55), 0 8px 22px rgba(0, 0, 0, 0.45);
 }
