@@ -840,7 +840,7 @@ function Farmer({ gs }) {
   return (
     <group ref={ref}>
       {dressed}
-      {gs.speechBubble && (
+      {gs.speechBubble && !gs.showSellModal && (
         <Html position={[0, 1.45, 0]} center zIndexRange={[30, 10]} style={{ pointerEvents: 'none' }}>
           <div className="hank-speech">{gs.speechBubble}</div>
         </Html>
