@@ -124,15 +124,15 @@ Builds on Epic 9 — borrow capital to invest now, pay it back with interest. Ve
 - [ ] More animals — cow, sheep, or a dog that follows Hank
 - [ ] Ambient birds / butterflies drifting over the field
 
-## 📱 Mobile support (cross-cutting)
-The current controls are desktop-only (left-drag select, right-drag orbit, wheel
-zoom, WASD move, number/E keys) — none of which exist on touch. Needs a real pass.
-- [ ] Touch input: tap a tile to act, drag across tiles for multi-select, pinch to zoom, two-finger drag to orbit/pan
-- [ ] On-screen controls for what keys did (move pad, action buttons, Next) since there's no keyboard
-- [ ] Responsive HUD: reflow for small / portrait screens, bigger tap targets, safe-area insets (notches)
-- [ ] Performance budget: cap device pixel ratio, smaller shadow maps, fewer decorations/particles on mobile
-- [ ] Prevent browser gestures hijacking the canvas (pull-to-refresh, double-tap zoom); test portrait + landscape
-- *open Q: support portrait, or lock to landscape?*
+## 📱 Mobile support (cross-cutting) — *foundation v1 in, needs device tuning*
+Target: **portrait**, gestures **+ on-screen pad**. Foundation laid; the exact
+positions/sizes were built blind and need real-device iteration.
+- [x] Touch input: tap a tile to act + drag across tiles to multi-select (unified via a single field picking plane), pinch to zoom, two-finger drag to orbit
+- [x] On-screen controls: D-pad (move) + Act button; `move`/`act` wired through `actions`
+- [x] Prevent browser gestures hijacking the canvas (viewport meta, `touch-action:none`, overscroll/zoom locked)
+- [~] Responsive HUD: portrait reflow + safe-area insets done as a first pass — needs tuning on a real screen (overlap risk: d-pad vs action bar on narrow widths)
+- [ ] Performance budget: cap device pixel ratio + smaller shadow maps on mobile, fewer decorations/particles
+- [ ] Device QA pass: real phones, notch safe-areas, d-pad/act ergonomics, one-handed reach
 
 ## 🧰 Tech / Infra
 - [ ] Code-split the three.js bundle (`manualChunks`) to clear the >500 kB warning

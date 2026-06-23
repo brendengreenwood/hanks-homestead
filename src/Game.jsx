@@ -410,26 +410,54 @@ export default function HanksHomestead() {
     return () => window.removeEventListener('pointerup', onUp);
   }); // run each render so closure sees fresh gs (cheap; gs is a ref)
 
+  // Move the farmer one tile in a direction (shared by keyboard + on-screen pad).
+  const DIR_DELTA = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+  const stepFarmer = (dir) => {
+    const [dx, dy] = DIR_DELTA[dir] || [0, 0];
+    const newX = Math.max(0, Math.min(WORLD_SIZE - 1, gs.farmerPos.x + dx));
+    const newY = Math.max(0, Math.min(WORLD_SIZE - 1, gs.farmerPos.y + dy));
+
+    // manual movement cancels any in-progress auto path
+    if (gs.isPathing) {
+      gs.isPathing = false;
+      gs.pathQueue = [];
+      gs.pendingActionQueue = [];
+      gs.pendingActionType = null;
+    }
+
+    if (!isWalkable(gs.buildings, newX, newY)) {
+      gs.farmerDir = dir;
+      requestRender();
+      return;
+    }
+    if (newX !== gs.farmerPos.x || newY !== gs.farmerPos.y) {
+      gs.isMoving = true;
+      gs.farmerDir = dir;
+      gs.farmerPos = { x: newX, y: newY };
+      requestRender();
+      setTimeout(() => { gs.isMoving = false; requestRender(); }, 150);
+    } else {
+      gs.farmerDir = dir;
+      requestRender();
+    }
+  };
+
   // ============================================
   // KEYBOARD
   // ============================================
   useEffect(() => {
     const handleKeyDown = (e) => {
-      let newX = gs.farmerPos.x;
-      let newY = gs.farmerPos.y;
-      let newDir = gs.farmerDir;
-
       switch (e.key.toLowerCase()) {
-        case 'w': case 'arrowup': newY = Math.max(0, gs.farmerPos.y - 1); newDir = 'up'; break;
-        case 's': case 'arrowdown': newY = Math.min(WORLD_SIZE - 1, gs.farmerPos.y + 1); newDir = 'down'; break;
-        case 'a': case 'arrowleft': newX = Math.max(0, gs.farmerPos.x - 1); newDir = 'left'; break;
-        case 'd': case 'arrowright': newX = Math.min(WORLD_SIZE - 1, gs.farmerPos.x + 1); newDir = 'right'; break;
+        case 'w': case 'arrowup': stepFarmer('up'); return;
+        case 's': case 'arrowdown': stepFarmer('down'); return;
+        case 'a': case 'arrowleft': stepFarmer('left'); return;
+        case 'd': case 'arrowright': stepFarmer('right'); return;
         case 'e': e.preventDefault(); performAction(); return;
         case '1': case '2': case '3': case '4': {
-          const actions = SEASON_ACTIONS[seasonForDay(gs.day)];
+          const acts = SEASON_ACTIONS[seasonForDay(gs.day)];
           const idx = parseInt(e.key, 10) - 1;
-          if (idx < actions.length) {
-            gs.selectedAction = actions[idx].id;
+          if (idx < acts.length) {
+            gs.selectedAction = acts[idx].id;
             requestRender();
           }
           return;
@@ -446,30 +474,6 @@ export default function HanksHomestead() {
           return;
         default:
           return;
-      }
-
-      if (gs.isPathing) {
-        gs.isPathing = false;
-        gs.pathQueue = [];
-        gs.pendingActionQueue = [];
-        gs.pendingActionType = null;
-      }
-
-      if (!isWalkable(gs.buildings, newX, newY)) {
-        gs.farmerDir = newDir;
-        requestRender();
-        return;
-      }
-
-      if (newX !== gs.farmerPos.x || newY !== gs.farmerPos.y) {
-        gs.isMoving = true;
-        gs.farmerDir = newDir;
-        gs.farmerPos = { x: newX, y: newY };
-        requestRender();
-        setTimeout(() => { gs.isMoving = false; requestRender(); }, 150);
-      } else {
-        gs.farmerDir = newDir;
-        requestRender();
       }
     };
 
@@ -587,6 +591,8 @@ export default function HanksHomestead() {
   const actions = {
     selectAction: (id) => { gs.selectedAction = id; requestRender(); },
     selectCrop: (id) => { gs.selectedCrop = id; requestRender(); },
+    move: stepFarmer,
+    act: performAction,
     advanceDay,
     resetGame,
     buySeeds,

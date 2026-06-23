@@ -130,26 +130,15 @@ function StatusPip({ color, x }) {
 }
 
 // ============================================
-// FIELD TILE (interactive soil)
+// FIELD TILE (visual only — interaction handled by FieldPlane below)
 // ============================================
-function Tile({ x, y, cell, hovered, selected, onPointerDown, onPointerEnter }) {
+function Tile({ x, y, cell, hovered, selected }) {
   const baseColor = cell.watered ? COLORS.soil.wet : COLORS.soil.dry;
   const color = selected && !cell.crop ? '#3B82F6' : baseColor;
 
   return (
     <group position={[gx(x), 0, gz(y)]}>
-      <mesh
-        receiveShadow
-        position={[0, 0.04, 0]}
-        onPointerDown={(e) => {
-          e.stopPropagation();
-          onPointerDown(x, y);
-        }}
-        onPointerOver={(e) => {
-          e.stopPropagation();
-          onPointerEnter(x, y);
-        }}
-      >
+      <mesh receiveShadow position={[0, 0.04, 0]}>
         <boxGeometry args={[0.98, 0.08, 0.98]} />
         <meshStandardMaterial color={color} roughness={1} />
       </mesh>
@@ -161,6 +150,41 @@ function Tile({ x, y, cell, hovered, selected, onPointerDown, onPointerEnter }) 
       )}
       {cell.crop && <Crop cell={cell} />}
     </group>
+  );
+}
+
+// One invisible plane over the whole field handles all picking. Using a single
+// surface (instead of per-tile pointer handlers) makes touch drag-select work —
+// touch implicitly captures the pointer to the pointerdown target, so per-tile
+// onPointerOver never fires mid-drag. We raycast the plane and derive the tile
+// from the hit point, which behaves identically for mouse and touch.
+const FIELD_CX = (gx(FIELD_OFFSET) + gx(FIELD_OFFSET + FIELD_SIZE - 1)) / 2;
+const FIELD_CZ = (gz(FIELD_OFFSET) + gz(FIELD_OFFSET + FIELD_SIZE - 1)) / 2;
+const clampField = (v) => Math.max(FIELD_OFFSET, Math.min(FIELD_OFFSET + FIELD_SIZE - 1, v));
+const pointToTile = (p) => ({
+  x: clampField(Math.round(p.x + HALF - 0.5)),
+  y: clampField(Math.round(p.z + HALF - 0.5)),
+});
+
+function FieldPlane({ onDown, onMove }) {
+  return (
+    <mesh
+      position={[FIELD_CX, 0.16, FIELD_CZ]}
+      rotation={[-Math.PI / 2, 0, 0]}
+      onPointerDown={(e) => {
+        e.stopPropagation();
+        const t = pointToTile(e.point);
+        onDown(t.x, t.y);
+      }}
+      onPointerMove={(e) => {
+        if (!e.point) return;
+        const t = pointToTile(e.point);
+        onMove(t.x, t.y);
+      }}
+    >
+      <planeGeometry args={[FIELD_SIZE, FIELD_SIZE]} />
+      <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+    </mesh>
   );
 }
 
@@ -180,20 +204,16 @@ function Field({ gs, onPointerDown, onPointerEnter }) {
     for (let x = FIELD_OFFSET; x < FIELD_OFFSET + FIELD_SIZE; x++) {
       const hovered = gs.hoveredTile && gs.hoveredTile.x === x && gs.hoveredTile.y === y;
       tiles.push(
-        <Tile
-          key={`${x},${y}`}
-          x={x}
-          y={y}
-          cell={gs.grid[y][x]}
-          hovered={hovered}
-          selected={inSel(x, y)}
-          onPointerDown={onPointerDown}
-          onPointerEnter={onPointerEnter}
-        />
+        <Tile key={`${x},${y}`} x={x} y={y} cell={gs.grid[y][x]} hovered={hovered} selected={inSel(x, y)} />
       );
     }
   }
-  return <group>{tiles}</group>;
+  return (
+    <group>
+      {tiles}
+      <FieldPlane onDown={onPointerDown} onMove={onPointerEnter} />
+    </group>
+  );
 }
 
 // ============================================
@@ -871,7 +891,7 @@ export default function FarmScene({ gs, version, onTilePointerDown, onTilePointe
       dpr={[1, 2]}
       gl={{ antialias: true }}
       onPointerMissed={onBackgroundMissed}
-      style={{ position: 'absolute', inset: 0 }}
+      style={{ position: 'absolute', inset: 0, touchAction: 'none' }}
     >
       <color attach="background" args={[data.sky.bottom]} />
       <fog attach="fog" args={[data.sky.horizon, 38, 70]} />
@@ -885,6 +905,7 @@ export default function FarmScene({ gs, version, onTilePointerDown, onTilePointe
         maxZoom={70}
         maxPolarAngle={Math.PI / 2.3}
         mouseButtons={{ LEFT: null, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE }}
+        touches={{ ONE: undefined, TWO: THREE.TOUCH.DOLLY_ROTATE }}
       />
 
       <SeasonLighting season={season} />

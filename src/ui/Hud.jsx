@@ -10,6 +10,7 @@ export default function Hud({ gs, actions }) {
 
   const harvested = cropEntries.map(([id, c]) => ({ id, c, count: gs.inventory[id] || 0 }));
   const totalHarvested = harvested.reduce((s, h) => s + h.count, 0);
+  const curAction = actionList.find((a) => a.id === gs.selectedAction);
 
   // Seasonal accent flows through CSS variables so the wood/parchment theme stays
   // constant while the accent (rings, glows, the Next button) tints per season.
@@ -139,6 +140,19 @@ export default function Hud({ gs, actions }) {
         <span className="arrow">→</span>
         <span className="next-label">NEXT</span>
       </button>
+
+      {/* On-screen touch controls (shown on touch devices via CSS) */}
+      <div className="touch-controls">
+        <div className="dpad">
+          <button className="dpad-btn up" onClick={() => actions.move('up')} aria-label="Move up">▲</button>
+          <button className="dpad-btn left" onClick={() => actions.move('left')} aria-label="Move left">◀</button>
+          <button className="dpad-btn right" onClick={() => actions.move('right')} aria-label="Move right">▶</button>
+          <button className="dpad-btn down" onClick={() => actions.move('down')} aria-label="Move down">▼</button>
+        </div>
+        <button className="act-btn" onClick={actions.act} aria-label="Do action">
+          {curAction?.icon || '✋'}
+        </button>
+      </div>
 
       {/* Winter sell modal */}
       {gs.showSellModal && <SellModal gs={gs} actions={actions} />}
