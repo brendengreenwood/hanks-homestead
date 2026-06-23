@@ -605,8 +605,14 @@
     transform: translateY(-50%) scale(0.82);
     transform-origin: left center;
   }
-  .action-bar { bottom: calc(96px + env(safe-area-inset-bottom)); }
-  .child-panel { bottom: calc(172px + env(safe-area-inset-bottom)); }
+  .action-bar { bottom: calc(96px + env(safe-area-inset-bottom)); gap: 6px; padding: 9px; }
+  .action-cell { width: 52px; height: 52px; }
+  .child-panel { bottom: calc(170px + env(safe-area-inset-bottom)); padding: 8px; }
+  /* tighten the crop selector so 5 cells fit a narrow screen without crowding
+     the inventory (left) or the Act button (right) */
+  .crop-panel { gap: 5px; }
+  .crop-cell { width: 44px; height: 44px; }
+  .cell-icon { font-size: 20px; }
   .next-turn {
     width: 76px;
     height: 76px;
