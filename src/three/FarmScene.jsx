@@ -1,5 +1,5 @@
 import React, { Suspense, useEffect, useMemo, useRef } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame, createPortal } from '@react-three/fiber';
 import { OrbitControls, OrthographicCamera, useGLTF, useAnimations, Html } from '@react-three/drei';
 import * as THREE from 'three';
 
@@ -321,13 +321,17 @@ function FarmerModel({ gs, movingRef }) {
   const interacting = useRef(false);
   const seenTick = useRef(gs.actionTick);
 
-  useMemo(() => {
+  const { headBone, handBone } = useMemo(() => {
     scene.traverse((o) => {
       if (o.isMesh) {
         o.castShadow = true;
         o.receiveShadow = true;
       }
     });
+    return {
+      headBone: scene.getObjectByName(FARMER.hat.bone),
+      handBone: scene.getObjectByName(FARMER.pitchfork.bone),
+    };
   }, [scene]);
 
   useEffect(() => () => Object.values(actions || {}).forEach((a) => a?.stop()), [actions]);
@@ -373,6 +377,21 @@ function FarmerModel({ gs, movingRef }) {
   return (
     <group ref={ref} rotation={[0, FARMER.rot, 0]} position={[0, FARMER.y, 0]}>
       <primitive object={scene} scale={FARMER.scale} />
+      {/* Accessories attached to skeleton bones so they track every animation. */}
+      {headBone &&
+        createPortal(
+          <group position={FARMER.hat.pos} rotation={FARMER.hat.rot} scale={FARMER.hat.scale}>
+            <StrawHat pos={[0, 0, 0]} />
+          </group>,
+          headBone
+        )}
+      {handBone &&
+        createPortal(
+          <group position={FARMER.pitchfork.pos} rotation={FARMER.pitchfork.rot} scale={FARMER.pitchfork.scale}>
+            <Pitchfork pos={[0, 0, 0]} />
+          </group>,
+          handBone
+        )}
     </group>
   );
 }
@@ -431,8 +450,6 @@ function Farmer({ gs }) {
     <ModelErrorBoundary fallback={<ProceduralFarmer />}>
       <Suspense fallback={<ProceduralFarmer />}>
         <FarmerModel gs={gs} movingRef={movingRef} />
-        <StrawHat pos={FARMER.hat.pos} rot={FARMER.hat.rot} />
-        <Pitchfork pos={FARMER.pitchfork.pos} rot={FARMER.pitchfork.rot} />
       </Suspense>
     </ModelErrorBoundary>
   ) : (
