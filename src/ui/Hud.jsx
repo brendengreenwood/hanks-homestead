@@ -69,9 +69,6 @@ export default function Hud({ gs, actions }) {
         ))}
       </div>
 
-      {/* Speech bubble */}
-      {gs.speechBubble && <div className="speech">{gs.speechBubble}</div>}
-
       {/* Notification */}
       {gs.notification && (
         <div className={`notification ${gs.notification.type}`}>{gs.notification.msg}</div>
