@@ -1,5 +1,11 @@
 # Architecture
 
+> ⚠️ **LEGACY (pre-three.js).** This document describes the original pure-Canvas
+> 2D isometric renderer, which has been replaced by a three.js / react-three-fiber
+> 3D renderer. It is kept for historical reference only. For the current
+> architecture, see `CLAUDE.md`. Much below (Canvas double-buffering, isometric
+> `toIso`/`fromIso`, canvas-drawn UI buttons) no longer applies.
+
 ## Why Canvas?
 
 We started with SVG. A 36x36 grid = 1,296 tiles, each with multiple SVG elements = 10,000+ DOM nodes. Browser couldn't handle it. Canvas draws everything as pixels in one element. Smooth 60fps.

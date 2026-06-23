@@ -1,7 +1,7 @@
 {
   "name": "hanks-homestead",
   "version": "1.0.0",
-  "description": "Isometric farming game built with React and Canvas",
+  "description": "Isometric farming game built with React and three.js (react-three-fiber)",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,8 +9,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@react-three/drei": "^9.122.0",
+    "@react-three/fiber": "^8.18.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "three": "^0.169.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.1",
