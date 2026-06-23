@@ -59,14 +59,26 @@ and sell into the rising market before the next harvest.
 - *(heaviest epic — balance carefully)*
 
 ### Epic 7 — Progression · land + speed
+- [ ] **Farm Supply / Hardware Market** — a third storefront (alongside the seed shop & grain elevator) for buying equipment, tools & upgrades
 - [ ] Buyable field parcels adjacent to the field; purchasing unlocks more farmable area; cost scaling
 - [ ] Equipment/tools: faster walk, faster action cadence, bigger / multi-tile action radius (tractor)
 - [ ] Gold balancing so the money loop has meaningful sinks
 
 ### Epic 8 — Progression · automation
-- [ ] Tractors/equipment that auto-perform row ops (till / plant / harvest); sprinkler auto-water
-- [ ] Automation buildings; possible fuel/upkeep cost
+- [ ] Sprinklers: buy + place to auto-water tiles in range each day (first automation device)
+- [ ] Tractors/equipment that auto-perform row ops (till / plant / harvest)
+- [ ] Automation buildings; integrates with the operational-cost mechanic below
 - *(depends on a working money loop from the marketplace)*
+
+### Epic 9 — Operational economy (CapEx vs OpEx)
+The "is it worth automating?" tension. Equipment costs money up front (**CapEx**)
+**and** a recurring amount to run (**OpEx**) — so the player weighs manual labor
+(free but hands-on) against automation (costs money but scales and saves effort).
+- [ ] Recurring expense ledger deducted each day/season for active equipment
+- [ ] Sprinklers carry a per-day water/upkeep cost on top of their purchase price
+- [ ] Toggle equipment on/off (e.g., shut the sprinklers off in winter) to control spend
+- [ ] Daily/seasonal P&L readout: revenue − OpEx − upkeep, so ROI is legible at a glance
+- *open Qs: OpEx cadence (per-day vs per-use)? per-tile sprinklers vs a coverage radius? does manual labor cost anything but time? what happens if you can't cover OpEx — equipment idles, or you go into the red?*
 
 ### Cross-cutting
 - [ ] **(P1) Save/Load lands early** — state is about to grow a lot and longer games need persistence
