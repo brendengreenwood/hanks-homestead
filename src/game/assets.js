@@ -2,55 +2,72 @@
 // ASSET REGISTRY — Kenney Nature Kit (CC0)
 // https://kenney.nl/assets/nature-kit
 //
-// HOW THE ASSET SWAP WORKS
-// ------------------------
-// The 3D scene renders a placeholder (procedural primitive) for every entity
-// UNLESS a model is registered here AND `USE_KENNEY_ASSETS` is true. To migrate
-// to the real Nature Kit art:
+// The GLB models live in public/models/nature-kit/ (a curated subset of the
+// kit — add more files there and reference them here as needed). The 3D scene
+// renders a procedural placeholder for any entity whose model is null/missing,
+// so the game stays runnable even if a file is absent.
 //
-//   1. Download the Nature Kit, extract the GLB models into:
-//        public/models/nature-kit/*.glb
-//   2. Confirm the filenames below match the files you extracted (Kenney ships
-//      files like `tree_default.glb`, `rock_largeA.glb`, `grass.glb`, etc.).
-//      Adjust the strings as needed — only the strings change, never the scene.
-//   3. Flip USE_KENNEY_ASSETS to true.
-//
-// Anything left null (or whose file is missing) keeps its placeholder, so the
-// game stays runnable at every step of the swap.
-//
-// NOTE: The Nature Kit is an outdoor/forest pack — it has terrain, trees, rocks,
-// plants and fences, but NO farmer character or barn. Those entries point at the
-// closest stand-ins (a crate/tent for buildings); replace with a Farm Kit / Mini
-// Characters asset later if you want exact matches.
+// To disable the art pack entirely (all placeholders), set USE_KENNEY_ASSETS
+// to false.
 // ============================================
 
-export const USE_KENNEY_ASSETS = false;
+export const USE_KENNEY_ASSETS = true;
 
 export const ASSET_BASE = '/models/nature-kit/';
 
 // Logical entity -> Nature Kit filename (relative to ASSET_BASE).
 export const MODELS = {
-  // Terrain
-  ground_grass: 'ground_grass.glb',
-  ground_soil: 'ground_riverOpen.glb', // dry tilled soil stand-in
-  ground_soilWet: 'ground_riverOpen.glb',
-
-  // Buildings (nearest stand-ins available in the Nature Kit)
+  // Buildings (nearest stand-ins in the Nature Kit — it has no barn/silo).
   farmhouse: 'tent_detailedOpen.glb',
-  silo: 'crate.glb',
+  silo: 'tent_smallClosed.glb',
 
-  // Farmer (no character in Nature Kit — placeholder until a character kit is added)
+  // Farmer: no character in the Nature Kit, keep the procedural placeholder.
   farmer: null,
 
-  // Crops: [sprout-while-growing, mature]. Mapped to the closest plant props.
+  // Crops: [growing sprout, mature]. The kit ships real growth-stage props.
   crop: {
-    wheat: ['plant_bushSmall.glb', 'grass_large.glb'],
-    carrot: ['plant_bushSmall.glb', 'flower_redA.glb'],
-    tomato: ['plant_bushSmall.glb', 'flower_redA.glb'],
-    corn: ['plant_bushSmall.glb', 'grass_large.glb'],
-    pumpkin: ['plant_bushSmall.glb', 'mushroom_redGroup.glb'],
+    wheat: ['crops_wheatStageA.glb', 'crops_wheatStageB.glb'],
+    carrot: ['crops_leafsStageA.glb', 'crop_carrot.glb'],
+    tomato: ['crops_leafsStageA.glb', 'flower_redA.glb'], // no tomato model; red stand-in
+    corn: ['crops_cornStageA.glb', 'crops_cornStageD.glb'],
+    pumpkin: ['crops_leafsStageB.glb', 'crop_pumpkin.glb'],
   },
 };
+
+// Per-crop scale + vertical offset so models sit nicely on a 1-unit tile.
+export const CROP_TRANSFORM = {
+  wheat: { scale: 0.62, y: 0 },
+  carrot: { scale: 0.6, y: 0 },
+  tomato: { scale: 0.55, y: 0 },
+  corn: { scale: 0.6, y: 0 },
+  pumpkin: { scale: 0.6, y: 0 },
+};
+
+// Decorative scatter around the farm (grid-agnostic world coords, origin-centered).
+// Keeps clear of the field interior (|x|,|z| < ~5) and the buildings.
+export const DECORATIONS = [
+  { model: 'tree_default.glb', x: -8, z: -8, s: 1.4, r: 0.3 },
+  { model: 'tree_detailed.glb', x: -10, z: 2, s: 1.5, r: 1.1 },
+  { model: 'tree_cone.glb', x: -8.5, z: 8, s: 1.3, r: 2.0 },
+  { model: 'tree_default.glb', x: 9, z: -7.5, s: 1.4, r: 0.8 },
+  { model: 'tree_detailed.glb', x: 10, z: 6, s: 1.5, r: 2.6 },
+  { model: 'tree_cone.glb', x: 7.5, z: 9.5, s: 1.2, r: 1.5 },
+  { model: 'tree_default.glb', x: 0, z: -10, s: 1.4, r: 0.5 },
+  { model: 'tree_cone.glb', x: 2, z: 10.5, s: 1.3, r: 3.0 },
+  { model: 'rock_largeA.glb', x: -6.5, z: -2, s: 1.1, r: 0.4 },
+  { model: 'rock_smallB.glb', x: 6.5, z: 1.5, s: 1.0, r: 1.2 },
+  { model: 'rock_smallD.glb', x: -3, z: 7.5, s: 1.0, r: 2.2 },
+  { model: 'rock_largeA.glb', x: 4.5, z: -8.5, s: 1.0, r: 0.9 },
+  { model: 'stump_round.glb', x: -5.5, z: 5.5, s: 1.0, r: 0 },
+  { model: 'mushroom_redGroup.glb', x: -6, z: 8.5, s: 1.1, r: 0.6 },
+  { model: 'plant_bushLarge.glb', x: 7, z: -3.5, s: 1.1, r: 1.0 },
+  { model: 'plant_bush.glb', x: -7.5, z: 1, s: 1.0, r: 2.0 },
+  { model: 'grass_large.glb', x: 5.5, z: 6, s: 1.2, r: 0.3 },
+  { model: 'grass_leafs.glb', x: -2, z: -7, s: 1.2, r: 1.4 },
+  { model: 'flower_yellowA.glb', x: 6, z: 8, s: 1.0, r: 0.7 },
+  { model: 'flower_purpleA.glb', x: -9, z: -4, s: 1.0, r: 1.9 },
+  { model: 'flower_redA.glb', x: 8.5, z: 3.5, s: 1.0, r: 2.5 },
+];
 
 // Resolve a logical key to a full URL, or null when assets are disabled/unmapped.
 export const modelUrl = (file) => {

@@ -48,18 +48,22 @@ finalized on a global `pointerup`.
 
 ## Art Assets — Kenney Nature Kit (CC0)
 
-3D art is the [Nature Kit](https://kenney.nl/assets/nature-kit). Until the models
-are dropped in, every entity renders a **procedural placeholder** so the game is
-always runnable.
+3D art is the [Nature Kit](https://kenney.nl/assets/nature-kit). A curated subset
+of GLB models is committed in `public/models/nature-kit/` and **enabled**
+(`USE_KENNEY_ASSETS = true` in `src/game/assets.js`). Crops use real growth-stage
+props (`crops_wheatStageA/B`, `crops_cornStageA–D`, `crop_carrot`, `crop_pumpkin`),
+the perimeter is scattered with trees/rocks/bushes (`DECORATIONS`), and buildings
+use tent stand-ins.
 
-To swap in the real models:
-1. Download the kit and extract the GLB files into `public/models/nature-kit/`.
-2. In `src/game/assets.js`, confirm the filenames in `MODELS` match what you
-   extracted, then set `USE_KENNEY_ASSETS = true`.
-3. Anything left `null` / missing keeps its placeholder.
+Any entity whose model is `null` or whose file fails to load falls back to a
+procedural placeholder (`ModelErrorBoundary` + `Suspense` in `FarmScene.jsx`), so
+the game never crashes on a missing asset.
 
-The Nature Kit has no farmer or barn; those use stand-ins (see comments in
-`assets.js`). Add a character/farm kit later for exact matches.
+To add more models: drop the GLB into `public/models/nature-kit/`, reference its
+filename in `MODELS` / `DECORATIONS` in `assets.js`, and tune scale via
+`CROP_TRANSFORM` or the decoration's `s`. The kit has no farmer or barn; the
+farmer is procedural and the silo/farmhouse are tents — add a character/farm kit
+for exact matches.
 
 ## How to Add Features
 

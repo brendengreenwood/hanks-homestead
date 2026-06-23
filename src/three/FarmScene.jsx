@@ -5,7 +5,7 @@ import * as THREE from 'three';
 
 import { CROPS, BUILDINGS, SEASONS, COLORS, WORLD_SIZE, FIELD_OFFSET, FIELD_SIZE, seasonForDay } from '../game/constants.js';
 import { isFarmland } from '../game/logic.js';
-import { modelUrl, cropModelUrl } from '../game/assets.js';
+import { modelUrl, cropModelUrl, CROP_TRANSFORM, DECORATIONS } from '../game/assets.js';
 
 // ============================================
 // GRID <-> WORLD COORDINATES
@@ -23,16 +23,43 @@ const gz = (y) => y - HALF + 0.5; // tile center Z
 // ============================================
 function GltfModel({ url, scale = 1 }) {
   const { scene } = useGLTF(url);
-  const cloned = useMemo(() => scene.clone(true), [scene]);
+  const cloned = useMemo(() => {
+    const c = scene.clone(true);
+    c.traverse((o) => {
+      if (o.isMesh) {
+        o.castShadow = true;
+        o.receiveShadow = true;
+      }
+    });
+    return c;
+  }, [scene]);
   return <primitive object={cloned} scale={scale} />;
+}
+
+// If a model fails to load (missing/corrupt file), fall back to the placeholder
+// instead of crashing the whole canvas.
+class ModelErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { failed: false };
+  }
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  render() {
+    if (this.state.failed) return this.props.fallback;
+    return this.props.children;
+  }
 }
 
 function ModelOrPlaceholder({ url, scale, placeholder }) {
   if (!url) return placeholder;
   return (
-    <Suspense fallback={placeholder}>
-      <GltfModel url={url} scale={scale} />
-    </Suspense>
+    <ModelErrorBoundary fallback={placeholder}>
+      <Suspense fallback={placeholder}>
+        <GltfModel url={url} scale={scale} />
+      </Suspense>
+    </ModelErrorBoundary>
   );
 }
 
@@ -69,12 +96,14 @@ function Crop({ cell }) {
   const mature = cell.growth >= crop.growTime;
   const progress = Math.min(cell.growth / crop.growTime, 1);
   const url = cropModelUrl(cell.crop, mature);
+  const t = CROP_TRANSFORM[cell.crop] || { scale: 0.6, y: 0 };
+  const modelScale = (mature ? 1 : 0.7) * t.scale;
 
   return (
-    <group position={[0, 0.08, 0]}>
+    <group position={[0, 0.08 + t.y, 0]}>
       <ModelOrPlaceholder
         url={url}
-        scale={mature ? 0.5 : 0.32}
+        scale={modelScale}
         placeholder={<CropPlaceholder cropId={cell.crop} progress={progress} mature={mature} />}
       />
       {/* ready-to-harvest beacon */}
@@ -222,6 +251,17 @@ function Buildings({ buildings }) {
 }
 
 // ============================================
+// DECORATIONS (Nature Kit scatter around the farm)
+// ============================================
+function Decorations() {
+  return DECORATIONS.map((d, i) => (
+    <group key={i} position={[d.x, 0, d.z]} rotation={[0, d.r || 0, 0]}>
+      <ModelOrPlaceholder url={modelUrl(d.model)} scale={d.s || 1} placeholder={null} />
+    </group>
+  ));
+}
+
+// ============================================
 // FARMER (smoothly lerps toward gs.farmerPos)
 // ============================================
 function Farmer({ gs }) {
@@ -343,6 +383,7 @@ export default function FarmScene({ gs, version, onTilePointerDown, onTilePointe
       {/* version is read so the subtree re-renders when game state mutates */}
       <group userData={{ version }}>
         <Ground grass={data.grass} />
+        <Decorations />
         <Field gs={gs} onPointerDown={onTilePointerDown} onPointerEnter={onTilePointerEnter} />
         <Buildings buildings={gs.buildings} />
         <Farmer gs={gs} />

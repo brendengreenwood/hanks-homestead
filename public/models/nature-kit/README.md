@@ -1,25 +1,20 @@
-# Kenney Nature Kit models go here
+# Kenney Nature Kit models
 
-Drop the `.glb` model files from the [Kenney Nature Kit](https://kenney.nl/assets/nature-kit)
-(CC0) directly into this folder, e.g.:
+This folder holds a curated subset of the [Kenney Nature Kit](https://kenney.nl/assets/nature-kit)
+(**CC0 / public domain** — no attribution required, but credit appreciated).
 
-```
-public/models/nature-kit/
-  ground_grass.glb
-  tree_default.glb
-  rock_largeA.glb
-  plant_bushSmall.glb
-  ...
-```
+These `.glb` files are referenced by `src/game/assets.js` (`MODELS`, `DECORATIONS`)
+and loaded by the 3D scene via `@react-three/drei`'s `useGLTF`.
 
-Then, in `src/game/assets.js`:
+## Adding more models
 
-1. Make sure the filenames listed in `MODELS` match the files you extracted.
-2. Set `USE_KENNEY_ASSETS = true`.
+1. Grab the full Nature Kit from kenney.nl (GLTF format) and drop the `.glb`
+   files you want here.
+2. Reference the filename in `src/game/assets.js`.
+3. The scene falls back to a procedural placeholder for any missing/unmapped
+   model, so you can add files incrementally.
 
-The 3D scene falls back to procedural placeholders for any entity whose model is
-missing or unmapped, so you can drop files in incrementally.
-
-The kit downloads as a zip from kenney.nl. In a sandboxed/CI environment that host
-may be network-blocked — download locally and commit the GLBs, or add `kenney.nl`
-to the environment's network allowlist.
+> The full kit downloads as a zip from kenney.nl. If that host is network-blocked
+> in your environment, the same CC0 GLBs are mirrored across many public GitHub
+> repos (search for `tree_default.glb`) and can be pulled via
+> `raw.githubusercontent.com`.
