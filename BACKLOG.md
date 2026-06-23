@@ -80,6 +80,15 @@ The "is it worth automating?" tension. Equipment costs money up front (**CapEx**
 - [ ] Daily/seasonal P&L readout: revenue − OpEx − upkeep, so ROI is legible at a glance
 - *open Qs: OpEx cadence (per-day vs per-use)? per-tile sprinklers vs a coverage radius? does manual labor cost anything but time? what happens if you can't cover OpEx — equipment idles, or you go into the red?*
 
+### Epic 10 — Financing & debt (stretch)
+Builds on Epic 9 — borrow capital to invest now, pay it back with interest. Very
+"real farm economics," and a natural answer to the "what if you can't cover OpEx?" question.
+- [ ] Loans from a bank / co-op to fund big purchases (tractor, land, elevator upgrade)
+- [ ] Interest accrues; repayment shows up as a recurring line alongside OpEx
+- [ ] Going into the red opens a debt path rather than a hard block; risk of foreclosure if it spirals
+- [ ] Credit / reputation that unlocks better rates as the farm proves itself
+- *open Qs: fixed-term loans vs revolving credit line? a bankruptcy lose-condition, or just soft pressure?*
+
 ### Cross-cutting
 - [ ] **(P1) Save/Load lands early** — state is about to grow a lot and longer games need persistence
 - [ ] Ongoing economy / balance tuning
