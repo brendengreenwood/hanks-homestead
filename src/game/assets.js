@@ -77,13 +77,18 @@ export const DECORATIONS = [
 // units (origin at the farmer's feet). Tweak these to taste.
 // Model is ~0.67 units tall at scale 1 with feet at y=0; scale ~1.4 => ~0.94 tall.
 // If the character faces away from its travel direction, set rot to Math.PI.
+//
+// The character is skinned/animated, so the hat and pitchfork are attached to its
+// skeleton bones (head + arm-right) and ride along with every animation. Their
+// pos/rot/scale below are in BONE-LOCAL space (scale is relative to the bone,
+// which already inherits the model scale), so they're small — tweak to taste.
 export const FARMER = {
   model: USE_KENNEY_ASSETS ? '/models/characters/character-male-a.glb' : null,
   scale: 1.4,
   y: 0,
   rot: 0,
-  hat: { pos: [0, 0.9, 0], rot: [0, 0, 0] },
-  pitchfork: { pos: [0.33, 0, 0.04], rot: [0, 0, 0.06] },
+  hat: { bone: 'head', pos: [0, 0.12, 0], rot: [0, 0, 0], scale: 0.6 },
+  pitchfork: { bone: 'arm-right', pos: [0, -0.18, 0.06], rot: [0, 0, 0], scale: 0.5 },
 };
 
 // Resolve a logical key to a full URL, or null when assets are disabled/unmapped.
