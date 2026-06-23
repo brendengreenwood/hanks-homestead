@@ -28,7 +28,9 @@
       "Bash(git merge:*)",
       "Bash(netlify deploy:*)",
       "Bash(git remote prune:*)",
-      "Bash(timeout 5 npm run dev:*)"
+      "Bash(timeout 5 npm run dev:*)",
+      "mcp__6122d2a5-db08-4a9c-acf5-d2ff0aef41e3__netlify-project-services-reader",
+      "mcp__6122d2a5-db08-4a9c-acf5-d2ff0aef41e3__netlify-deploy-services-reader"
     ]
   }
 }
