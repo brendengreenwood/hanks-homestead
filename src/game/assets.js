@@ -17,9 +17,10 @@ export const ASSET_BASE = '/models/nature-kit/';
 
 // Logical entity -> Nature Kit filename (relative to ASSET_BASE).
 export const MODELS = {
-  // Buildings (nearest stand-ins in the Nature Kit — it has no barn/silo).
-  farmhouse: 'tent_detailedOpen.glb',
-  silo: 'tent_smallClosed.glb',
+  // Buildings are modeled procedurally in FarmScene (Barn/Silo) to match the
+  // Nature Kit's flat-shaded look — the kit ships no barn/silo.
+  farmhouse: null,
+  silo: null,
 
   // Farmer: Kenney Mini Characters (CC0) base, dressed up with accessories
   // (straw hat + pitchfork) in the scene. Falls back to the procedural farmer.

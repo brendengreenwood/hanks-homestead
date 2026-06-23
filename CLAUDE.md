@@ -52,8 +52,9 @@ finalized on a global `pointerup`.
 of GLB models is committed in `public/models/nature-kit/` and **enabled**
 (`USE_KENNEY_ASSETS = true` in `src/game/assets.js`). Crops use real growth-stage
 props (`crops_wheatStageA/B`, `crops_cornStageA–D`, `crop_carrot`, `crop_pumpkin`),
-the perimeter is scattered with trees/rocks/bushes (`DECORATIONS`), and buildings
-use tent stand-ins.
+the perimeter is scattered with trees/rocks/bushes (`DECORATIONS`), and the
+farmhouse/silo are procedural low-poly meshes (`Barn`/`Silo` in `FarmScene.jsx`)
+modeled to match the kit's flat-shaded look.
 
 Any entity whose model is `null` or whose file fails to load falls back to a
 procedural placeholder (`ModelErrorBoundary` + `Suspense` in `FarmScene.jsx`), so
@@ -61,8 +62,8 @@ the game never crashes on a missing asset.
 
 To add more models: drop the GLB into `public/models/nature-kit/`, reference its
 filename in `MODELS` / `DECORATIONS` in `assets.js`, and tune scale via
-`CROP_TRANSFORM` or the decoration's `s`. The Nature Kit has no barn, so the
-silo/farmhouse are tent stand-ins.
+`CROP_TRANSFORM` or the decoration's `s`. The Nature Kit has no barn/silo, so
+those are procedural (`Barn`/`Silo` in `FarmScene.jsx`).
 
 The **farmer** is a separate CC0 kit — Kenney Mini Characters
 (`public/models/characters/character-male-a.glb`), a rigged character that
