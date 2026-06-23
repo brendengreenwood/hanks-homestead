@@ -1,11 +1,11 @@
-import React, { Suspense, useMemo, useRef } from 'react';
+import React, { Suspense, useEffect, useMemo, useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, OrthographicCamera, useGLTF, Html } from '@react-three/drei';
+import { OrbitControls, OrthographicCamera, useGLTF, useAnimations, Html } from '@react-three/drei';
 import * as THREE from 'three';
 
 import { CROPS, BUILDINGS, SEASONS, COLORS, WORLD_SIZE, FIELD_OFFSET, FIELD_SIZE, seasonForDay } from '../game/constants.js';
 import { isFarmland } from '../game/logic.js';
-import { modelUrl, cropModelUrl, CROP_TRANSFORM, DECORATIONS } from '../game/assets.js';
+import { modelUrl, cropModelUrl, CROP_TRANSFORM, DECORATIONS, FARMER } from '../game/assets.js';
 
 // ============================================
 // GRID <-> WORLD COORDINATES
@@ -262,11 +262,152 @@ function Decorations() {
 }
 
 // ============================================
+// FARMER ACCESSORIES (procedural — straw hat + pitchfork)
+// ============================================
+function StrawHat({ pos = [0, 1.02, 0], rot = [0, 0, 0] }) {
+  return (
+    <group position={pos} rotation={rot}>
+      {/* brim */}
+      <mesh castShadow>
+        <cylinderGeometry args={[0.26, 0.26, 0.035, 16]} />
+        <meshStandardMaterial color="#C9A24B" roughness={1} flatShading />
+      </mesh>
+      {/* crown */}
+      <mesh position={[0, 0.1, 0]} castShadow>
+        <coneGeometry args={[0.15, 0.2, 16]} />
+        <meshStandardMaterial color="#B8893B" roughness={1} flatShading />
+      </mesh>
+      {/* band */}
+      <mesh position={[0, 0.03, 0]} castShadow>
+        <cylinderGeometry args={[0.155, 0.155, 0.04, 16]} />
+        <meshStandardMaterial color="#6B4423" roughness={1} />
+      </mesh>
+    </group>
+  );
+}
+
+function Pitchfork({ pos = [0.34, 0, 0.05], rot = [0, 0, 0] }) {
+  const prong = (x) => (
+    <mesh key={x} position={[x, 1.16, 0]} castShadow>
+      <cylinderGeometry args={[0.012, 0.006, 0.22, 6]} />
+      <meshStandardMaterial color="#9CA3AF" metalness={0.6} roughness={0.4} />
+    </mesh>
+  );
+  return (
+    <group position={pos} rotation={rot}>
+      {/* handle */}
+      <mesh position={[0, 0.55, 0]} castShadow>
+        <cylinderGeometry args={[0.022, 0.022, 1.1, 8]} />
+        <meshStandardMaterial color="#9B6B3F" roughness={0.9} />
+      </mesh>
+      {/* head crossbar */}
+      <mesh position={[0, 1.06, 0]} castShadow>
+        <boxGeometry args={[0.18, 0.03, 0.03]} />
+        <meshStandardMaterial color="#9CA3AF" metalness={0.6} roughness={0.4} />
+      </mesh>
+      {[-0.07, 0, 0.07].map(prong)}
+    </group>
+  );
+}
+
+// ============================================
+// FARMER MODEL (Kenney Mini Characters, CC0) + animation if present
+// ============================================
+function FarmerModel({ gs, movingRef }) {
+  const { scene, animations } = useGLTF(FARMER.model);
+  const ref = useRef();
+  const { actions, names, mixer } = useAnimations(animations, ref);
+  const currentRef = useRef(null);
+  const interacting = useRef(false);
+  const seenTick = useRef(gs.actionTick);
+
+  useMemo(() => {
+    scene.traverse((o) => {
+      if (o.isMesh) {
+        o.castShadow = true;
+        o.receiveShadow = true;
+      }
+    });
+  }, [scene]);
+
+  useEffect(() => () => Object.values(actions || {}).forEach((a) => a?.stop()), [actions]);
+
+  // When a one-shot interact clip finishes, drop back into locomotion.
+  useEffect(() => {
+    if (!mixer) return;
+    const onFinished = (e) => {
+      if (e.action === actions['interact-right']) {
+        interacting.current = false;
+        currentRef.current = null; // force a fresh idle/walk fade-in
+      }
+    };
+    mixer.addEventListener('finished', onFinished);
+    return () => mixer.removeEventListener('finished', onFinished);
+  }, [mixer, actions]);
+
+  useFrame(() => {
+    // One-shot interact gesture on each tile action.
+    if (gs.actionTick !== seenTick.current) {
+      seenTick.current = gs.actionTick;
+      const act = actions['interact-right'];
+      if (act) {
+        if (currentRef.current) actions[currentRef.current]?.fadeOut(0.1);
+        currentRef.current = null;
+        interacting.current = true;
+        act.reset();
+        act.setLoop(THREE.LoopOnce, 1);
+        act.clampWhenFinished = false;
+        act.fadeIn(0.05).play();
+      }
+    }
+    if (interacting.current) return;
+
+    // Crossfade idle <-> walk based on whether the farmer is moving.
+    const want = movingRef?.current && actions.walk ? 'walk' : actions.idle ? 'idle' : names[0];
+    if (!want || want === currentRef.current) return;
+    actions[want]?.reset().fadeIn(0.2).play();
+    if (currentRef.current) actions[currentRef.current]?.fadeOut(0.2);
+    currentRef.current = want;
+  });
+
+  return (
+    <group ref={ref} rotation={[0, FARMER.rot, 0]} position={[0, FARMER.y, 0]}>
+      <primitive object={scene} scale={FARMER.scale} />
+    </group>
+  );
+}
+
+function ProceduralFarmer() {
+  return (
+    <group>
+      <mesh position={[0, 0.3, 0]} castShadow>
+        <capsuleGeometry args={[0.16, 0.3, 4, 10]} />
+        <meshStandardMaterial color="#1E40AF" />
+      </mesh>
+      <mesh position={[0, 0.6, 0]} castShadow>
+        <sphereGeometry args={[0.18, 12, 12]} />
+        <meshStandardMaterial color="#DC2626" />
+      </mesh>
+      <mesh position={[0, 0.82, 0]} castShadow>
+        <sphereGeometry args={[0.14, 12, 12]} />
+        <meshStandardMaterial color="#FDBF6F" />
+      </mesh>
+      <StrawHat pos={[0, 0.95, 0]} />
+      <mesh position={[0, 0.6, 0.18]}>
+        <sphereGeometry args={[0.05, 8, 8]} />
+        <meshStandardMaterial color="#F4D03F" />
+      </mesh>
+    </group>
+  );
+}
+
+// ============================================
 // FARMER (smoothly lerps toward gs.farmerPos)
 // ============================================
 function Farmer({ gs }) {
   const ref = useRef();
   const bob = useRef(0);
+  const movingRef = useRef(false);
 
   useFrame((_, dt) => {
     if (!ref.current) return;
@@ -279,43 +420,28 @@ function Farmer({ gs }) {
     const dir = { up: Math.PI, down: 0, left: -Math.PI / 2, right: Math.PI / 2 }[gs.farmerDir] ?? 0;
     ref.current.rotation.y = THREE.MathUtils.damp(ref.current.rotation.y, dir, 10, dt);
 
-    // bob while moving
-    bob.current += dt * 12;
+    // bob while moving (procedural fallback only; the rigged model walks itself)
     const moving = gs.isMoving || Math.abs(ref.current.position.x - tx) > 0.02 || Math.abs(ref.current.position.z - tz) > 0.02;
-    ref.current.position.y = moving ? Math.abs(Math.sin(bob.current)) * 0.08 : 0;
+    movingRef.current = moving;
+    bob.current += dt * 12;
+    ref.current.position.y = !FARMER.model && moving ? Math.abs(Math.sin(bob.current)) * 0.08 : 0;
   });
+
+  const dressed = FARMER.model ? (
+    <ModelErrorBoundary fallback={<ProceduralFarmer />}>
+      <Suspense fallback={<ProceduralFarmer />}>
+        <FarmerModel gs={gs} movingRef={movingRef} />
+        <StrawHat pos={FARMER.hat.pos} rot={FARMER.hat.rot} />
+        <Pitchfork pos={FARMER.pitchfork.pos} rot={FARMER.pitchfork.rot} />
+      </Suspense>
+    </ModelErrorBoundary>
+  ) : (
+    <ProceduralFarmer />
+  );
 
   return (
     <group ref={ref} position={[gx(gs.farmerPos.x), 0, gz(gs.farmerPos.y)]}>
-      {/* legs/body */}
-      <mesh position={[0, 0.3, 0]} castShadow>
-        <capsuleGeometry args={[0.16, 0.3, 4, 10]} />
-        <meshStandardMaterial color="#1E40AF" />
-      </mesh>
-      {/* shirt */}
-      <mesh position={[0, 0.6, 0]} castShadow>
-        <sphereGeometry args={[0.18, 12, 12]} />
-        <meshStandardMaterial color="#DC2626" />
-      </mesh>
-      {/* head */}
-      <mesh position={[0, 0.82, 0]} castShadow>
-        <sphereGeometry args={[0.14, 12, 12]} />
-        <meshStandardMaterial color="#FDBF6F" />
-      </mesh>
-      {/* straw hat */}
-      <mesh position={[0, 0.94, 0]} castShadow>
-        <cylinderGeometry args={[0.26, 0.26, 0.04, 12]} />
-        <meshStandardMaterial color={COLORS.wood.dark} />
-      </mesh>
-      <mesh position={[0, 0.99, 0]} castShadow>
-        <cylinderGeometry args={[0.13, 0.15, 0.1, 12]} />
-        <meshStandardMaterial color={COLORS.wood.medium} />
-      </mesh>
-      {/* facing nub */}
-      <mesh position={[0, 0.6, 0.18]}>
-        <sphereGeometry args={[0.05, 8, 8]} />
-        <meshStandardMaterial color="#F4D03F" />
-      </mesh>
+      {dressed}
     </group>
   );
 }

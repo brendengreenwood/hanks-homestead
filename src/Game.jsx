@@ -32,6 +32,7 @@ export default function HanksHomestead() {
     farmerPos: { x: FIELD_OFFSET + 4, y: FIELD_OFFSET + 4 },
     farmerDir: 'down',
     isMoving: false,
+    actionTick: 0, // bumped on each tile action to trigger the interact animation
     grid: makeGrid(),
     buildings: [
       { type: 'farmhouse', x: FIELD_OFFSET - 3, y: FIELD_OFFSET },
@@ -126,6 +127,7 @@ export default function HanksHomestead() {
         gs.inventory[seedKey]--;
         gs.grid[y][x] = { crop: gs.selectedCrop, growth: 0, watered: false, fed: false, harvestPenalty: false };
         sounds.plant();
+        gs.actionTick++;
         showNotification(`Planted ${CROPS[gs.selectedCrop].icon} ${CROPS[gs.selectedCrop].name}!`, 'success');
       } else {
         handleOutOfSeeds();
@@ -137,6 +139,7 @@ export default function HanksHomestead() {
       }
       gs.grid[y][x].watered = true;
       sounds.water();
+      gs.actionTick++;
       showNotification('Watered!', 'success');
     } else if (gs.selectedAction === 'clean' && cell.crop) {
       if (season !== 'summer') {
@@ -146,6 +149,7 @@ export default function HanksHomestead() {
       if (!cell.fed) {
         gs.grid[y][x].fed = true;
         sounds.water();
+        gs.actionTick++;
         showNotification('Applied plant food!', 'success');
       } else {
         showNotification('Already fed!', 'info');
@@ -169,6 +173,7 @@ export default function HanksHomestead() {
         gs.inventory[cell.crop] = (gs.inventory[cell.crop] || 0) + harvestAmount;
         gs.grid[y][x] = emptyCell();
         sounds.harvest();
+        gs.actionTick++;
         showNotification(`Harvested ${cropData.icon} ${cropData.name}!${message}`, cell.harvestPenalty ? 'info' : 'success');
       } else {
         sounds.error();
@@ -559,6 +564,7 @@ export default function HanksHomestead() {
           }
         }
 
+        gs.actionTick++;
         gs.autoActionQueue = rest;
         requestRender();
         setTimeout(() => { gs.isMoving = false; requestRender(); }, 100);

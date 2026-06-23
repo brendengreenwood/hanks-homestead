@@ -61,9 +61,14 @@ the game never crashes on a missing asset.
 
 To add more models: drop the GLB into `public/models/nature-kit/`, reference its
 filename in `MODELS` / `DECORATIONS` in `assets.js`, and tune scale via
-`CROP_TRANSFORM` or the decoration's `s`. The kit has no farmer or barn; the
-farmer is procedural and the silo/farmhouse are tents — add a character/farm kit
-for exact matches.
+`CROP_TRANSFORM` or the decoration's `s`. The Nature Kit has no barn, so the
+silo/farmhouse are tent stand-ins.
+
+The **farmer** is a separate CC0 kit — Kenney Mini Characters
+(`public/models/characters/character-male-a.glb`), a rigged character that
+crossfades `idle`/`walk` and is dressed with a procedural straw hat + pitchfork.
+Tune it via the `FARMER` object in `assets.js` (scale/facing/accessory offsets);
+it falls back to the fully procedural farmer if the model is absent.
 
 ## How to Add Features
 
