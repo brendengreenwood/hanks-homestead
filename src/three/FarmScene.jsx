@@ -313,11 +313,13 @@ function Pitchfork({ pos = [0.34, 0, 0.05], rot = [0, 0, 0] }) {
 // ============================================
 // FARMER MODEL (Kenney Mini Characters, CC0) + animation if present
 // ============================================
-function FarmerModel({ movingRef }) {
+function FarmerModel({ gs, movingRef }) {
   const { scene, animations } = useGLTF(FARMER.model);
   const ref = useRef();
-  const { actions, names } = useAnimations(animations, ref);
+  const { actions, names, mixer } = useAnimations(animations, ref);
   const currentRef = useRef(null);
+  const interacting = useRef(false);
+  const seenTick = useRef(gs.actionTick);
 
   useMemo(() => {
     scene.traverse((o) => {
@@ -330,10 +332,38 @@ function FarmerModel({ movingRef }) {
 
   useEffect(() => () => Object.values(actions || {}).forEach((a) => a?.stop()), [actions]);
 
-  // Crossfade idle <-> walk based on whether the farmer is moving.
+  // When a one-shot interact clip finishes, drop back into locomotion.
+  useEffect(() => {
+    if (!mixer) return;
+    const onFinished = (e) => {
+      if (e.action === actions['interact-right']) {
+        interacting.current = false;
+        currentRef.current = null; // force a fresh idle/walk fade-in
+      }
+    };
+    mixer.addEventListener('finished', onFinished);
+    return () => mixer.removeEventListener('finished', onFinished);
+  }, [mixer, actions]);
+
   useFrame(() => {
-    const want =
-      movingRef?.current && actions.walk ? 'walk' : actions.idle ? 'idle' : names[0];
+    // One-shot interact gesture on each tile action.
+    if (gs.actionTick !== seenTick.current) {
+      seenTick.current = gs.actionTick;
+      const act = actions['interact-right'];
+      if (act) {
+        if (currentRef.current) actions[currentRef.current]?.fadeOut(0.1);
+        currentRef.current = null;
+        interacting.current = true;
+        act.reset();
+        act.setLoop(THREE.LoopOnce, 1);
+        act.clampWhenFinished = false;
+        act.fadeIn(0.05).play();
+      }
+    }
+    if (interacting.current) return;
+
+    // Crossfade idle <-> walk based on whether the farmer is moving.
+    const want = movingRef?.current && actions.walk ? 'walk' : actions.idle ? 'idle' : names[0];
     if (!want || want === currentRef.current) return;
     actions[want]?.reset().fadeIn(0.2).play();
     if (currentRef.current) actions[currentRef.current]?.fadeOut(0.2);
@@ -400,7 +430,7 @@ function Farmer({ gs }) {
   const dressed = FARMER.model ? (
     <ModelErrorBoundary fallback={<ProceduralFarmer />}>
       <Suspense fallback={<ProceduralFarmer />}>
-        <FarmerModel movingRef={movingRef} />
+        <FarmerModel gs={gs} movingRef={movingRef} />
         <StrawHat pos={FARMER.hat.pos} rot={FARMER.hat.rot} />
         <Pitchfork pos={FARMER.pitchfork.pos} rot={FARMER.pitchfork.rot} />
       </Suspense>
