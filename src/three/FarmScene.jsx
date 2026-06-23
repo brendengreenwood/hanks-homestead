@@ -315,6 +315,113 @@ function Silo() {
   );
 }
 
+function ChimneySmoke({ origin }) {
+  const refs = useRef([]);
+  const st = useRef(Array.from({ length: 3 }, (_, i) => ({ t: i / 3 })));
+  useFrame((_, dt) => {
+    for (let i = 0; i < st.current.length; i++) {
+      const p = st.current[i];
+      const m = refs.current[i];
+      if (!m) continue;
+      p.t += dt * 0.32;
+      if (p.t > 1) p.t -= 1;
+      const t = p.t;
+      m.position.set(origin[0] + Math.sin(t * 6) * 0.06, origin[1] + t * 0.95, origin[2]);
+      m.scale.setScalar(0.05 + t * 0.13);
+      m.material.opacity = (1 - t) * 0.5;
+    }
+  });
+  return st.current.map((_, i) => (
+    <mesh key={i} ref={(el) => (refs.current[i] = el)} position={origin}>
+      <sphereGeometry args={[1, 8, 8]} />
+      <meshStandardMaterial color="#d8d4cc" transparent opacity={0.4} depthWrite={false} flatShading />
+    </mesh>
+  ));
+}
+
+// Hank's cottage — cream walls, shingled gable roof, door, shuttered windows,
+// and a smoking chimney. Flat-shaded to match the kit.
+function House() {
+  const W = 1.6;
+  const D = 1.5;
+  const Hb = 0.95;
+  const rise = 0.55;
+  const overhang = 0.12;
+  const run = W / 2 + overhang;
+  const angle = Math.atan2(rise, run);
+  const slabLen = Math.hypot(run, rise);
+  const wall = '#e8dcc0';
+  const roof = '#6b4a2a';
+  const trim = '#7a5230';
+  const door = '#5b3a22';
+  const glass = '#bcd6e8';
+
+  return (
+    <group>
+      {/* body */}
+      <mesh position={[0, Hb / 2, 0]} castShadow receiveShadow>
+        <boxGeometry args={[W, Hb, D]} />
+        <meshStandardMaterial color={wall} flatShading roughness={1} />
+      </mesh>
+      {/* roof */}
+      <mesh position={[-run / 2, Hb + rise / 2, 0]} rotation={[0, 0, angle]} castShadow>
+        <boxGeometry args={[slabLen, 0.07, D + overhang * 2]} />
+        <meshStandardMaterial color={roof} flatShading roughness={1} />
+      </mesh>
+      <mesh position={[run / 2, Hb + rise / 2, 0]} rotation={[0, 0, -angle]} castShadow>
+        <boxGeometry args={[slabLen, 0.07, D + overhang * 2]} />
+        <meshStandardMaterial color={roof} flatShading roughness={1} />
+      </mesh>
+      <mesh position={[0, Hb + rise, 0]} castShadow>
+        <boxGeometry args={[0.1, 0.08, D + overhang * 2]} />
+        <meshStandardMaterial color={roof} flatShading roughness={1} />
+      </mesh>
+      <GableEnd width={W} rise={rise} y={Hb} z={D / 2 + 0.001} color={wall} />
+      <GableEnd width={W} rise={rise} y={Hb} z={-D / 2 - 0.001} color={wall} />
+      {/* door (front, +z) */}
+      <mesh position={[0, 0.33, D / 2 + 0.015]}>
+        <boxGeometry args={[0.42, 0.7, 0.03]} />
+        <meshStandardMaterial color={trim} flatShading roughness={1} />
+      </mesh>
+      <mesh position={[0, 0.32, D / 2 + 0.03]} castShadow>
+        <boxGeometry args={[0.34, 0.62, 0.05]} />
+        <meshStandardMaterial color={door} flatShading roughness={1} />
+      </mesh>
+      <mesh position={[0.1, 0.32, D / 2 + 0.07]}>
+        <sphereGeometry args={[0.025, 8, 8]} />
+        <meshStandardMaterial color="#d8b24a" metalness={0.4} roughness={0.5} />
+      </mesh>
+      {/* windows flanking the door */}
+      {[-0.5, 0.5].map((x) => (
+        <group key={x} position={[x, 0.6, D / 2 + 0.02]}>
+          <mesh>
+            <boxGeometry args={[0.3, 0.3, 0.04]} />
+            <meshStandardMaterial color={trim} flatShading roughness={1} />
+          </mesh>
+          <mesh position={[0, 0, 0.012]}>
+            <boxGeometry args={[0.22, 0.22, 0.04]} />
+            <meshStandardMaterial color={glass} flatShading roughness={0.4} metalness={0.1} />
+          </mesh>
+          <mesh position={[0, 0, 0.035]}>
+            <boxGeometry args={[0.24, 0.02, 0.02]} />
+            <meshStandardMaterial color={trim} />
+          </mesh>
+          <mesh position={[0, 0, 0.035]}>
+            <boxGeometry args={[0.02, 0.24, 0.02]} />
+            <meshStandardMaterial color={trim} />
+          </mesh>
+        </group>
+      ))}
+      {/* chimney + smoke */}
+      <mesh position={[-0.45, Hb + rise * 0.6, -0.3]} castShadow>
+        <boxGeometry args={[0.18, 0.52, 0.18]} />
+        <meshStandardMaterial color="#9a4a36" flatShading roughness={1} />
+      </mesh>
+      <ChimneySmoke origin={[-0.45, Hb + rise * 0.6 + 0.32, -0.3]} />
+    </group>
+  );
+}
+
 function Buildings({ buildings }) {
   return buildings.map((b, i) => {
     const data = BUILDINGS[b.type];
@@ -323,7 +430,7 @@ function Buildings({ buildings }) {
     const cz = gz(b.y) + (data.height - 1) / 2;
     return (
       <group key={i} position={[cx, 0, cz]}>
-        {b.type === 'farmhouse' ? <Barn /> : <Silo />}
+        {b.type === 'barn' ? <Barn /> : b.type === 'house' ? <House /> : <Silo />}
         <Html position={[0, 1.95, 0]} center style={{ pointerEvents: 'none' }}>
           <div className="world-label">{data.name}</div>
         </Html>
@@ -347,7 +454,7 @@ function Decorations() {
 // CHICKENS — procedural flat-shaded hens that wander the barnyard and
 // scatter when Hank gets close. Pure useFrame; no game state involved.
 // ============================================
-const CHICKEN_HOME = { x: -7.2, z: -1.0 }; // grassy patch beside the farmhouse
+const CHICKEN_HOME = { x: -7.2, z: -1.0 }; // grassy patch between the barn and house
 const CHICKEN_COUNT = 5;
 const YARD_R = 1.9; // how far they roam from home
 const FLEE_R = 2.3; // how close Hank can get before they bolt

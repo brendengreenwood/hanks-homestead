@@ -8,7 +8,8 @@ export const WORLD_SIZE = 36; // Total world grid
 export const FIELD_OFFSET = 13; // Field starts here (centered in world)
 
 export const BUILDINGS = {
-  farmhouse: { name: 'Farmhouse', color: '#6B7280', width: 2, height: 2 },
+  barn: { name: 'Barn', color: '#b0402c', width: 2, height: 2 },
+  house: { name: "Hank's House", color: '#e8dcc0', width: 2, height: 2 },
   silo: { name: 'Silo', color: '#9CA3AF', width: 1, height: 1 },
 };
 

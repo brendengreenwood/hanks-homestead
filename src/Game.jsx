@@ -35,7 +35,8 @@ export default function HanksHomestead() {
     actionTick: 0, // bumped on each tile action to trigger the interact animation
     grid: makeGrid(),
     buildings: [
-      { type: 'farmhouse', x: FIELD_OFFSET - 3, y: FIELD_OFFSET },
+      { type: 'barn', x: FIELD_OFFSET - 3, y: FIELD_OFFSET },
+      { type: 'house', x: FIELD_OFFSET - 3, y: FIELD_OFFSET + 7 },
       { type: 'silo', x: FIELD_OFFSET + FIELD_SIZE + 1, y: FIELD_OFFSET + 2 },
     ],
     hoveredTile: null,
