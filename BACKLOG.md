@@ -124,6 +124,16 @@ Builds on Epic 9 — borrow capital to invest now, pay it back with interest. Ve
 - [ ] More animals — cow, sheep, or a dog that follows Hank
 - [ ] Ambient birds / butterflies drifting over the field
 
+## 📱 Mobile support (cross-cutting)
+The current controls are desktop-only (left-drag select, right-drag orbit, wheel
+zoom, WASD move, number/E keys) — none of which exist on touch. Needs a real pass.
+- [ ] Touch input: tap a tile to act, drag across tiles for multi-select, pinch to zoom, two-finger drag to orbit/pan
+- [ ] On-screen controls for what keys did (move pad, action buttons, Next) since there's no keyboard
+- [ ] Responsive HUD: reflow for small / portrait screens, bigger tap targets, safe-area insets (notches)
+- [ ] Performance budget: cap device pixel ratio, smaller shadow maps, fewer decorations/particles on mobile
+- [ ] Prevent browser gestures hijacking the canvas (pull-to-refresh, double-tap zoom); test portrait + landscape
+- *open Q: support portrait, or lock to landscape?*
+
 ## 🧰 Tech / Infra
 - [ ] Code-split the three.js bundle (`manualChunks`) to clear the >500 kB warning
 - [ ] Asset preload + a small loading screen
