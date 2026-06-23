@@ -1,5 +1,10 @@
 # Session Context for Claude
 
+> ⚠️ **OUTDATED.** This file captured a one-off debugging session for the old
+> Canvas renderer. The game has since migrated to three.js / react-three-fiber.
+> See `CLAUDE.md` for current architecture. Kept only for history.
+
+
 ## Project
 Hank's Homestead - isometric farming game, pure canvas rendering in React.
 

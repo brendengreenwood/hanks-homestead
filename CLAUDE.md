@@ -1,162 +1,98 @@
 # Instructions for Claude Code
 
-You're continuing development on Hank's Homestead, an isometric farming game.
+You're continuing development on **Hank's Homestead**, an isometric farming game.
 
 ## Critical Context
 
-1. **Pure Canvas rendering** - No React DOM except the canvas element. This was intentional - SVG couldn't handle the 36x36 grid.
+The game was migrated from a single-file pure-Canvas 2D renderer to **3D with
+three.js via [@react-three/fiber](https://docs.pmnd.rs/react-three-fiber)** (r3f
+v8 + drei v9, pinned for React 18). The old `Game.jsx` canvas monolith is gone;
+its history is in git.
 
-2. **State in refs** - All game state lives in `gameState.current`. Mutate directly, call `requestRender()` to update visuals. Do NOT use useState for game data.
+1. **Game state lives in a ref** - `gameState.current` in `src/Game.jsx`. Mutate
+   it directly, then call `requestRender()` to bump a version counter that
+   re-renders the React tree (3D scene + HUD). Do NOT use `useState` for game data.
 
-3. **Single file game** - `src/Game.jsx` is ~1500 lines. This is fine. Canvas games don't need component decomposition.
+2. **3D scene is declarative** - `src/three/FarmScene.jsx` reads `gs` and renders
+   the world (ground, soil tiles, crops, buildings, farmer). It re-renders when
+   the `version` prop changes. Smooth motion (farmer walk/bob) uses `useFrame`,
+   not `requestRender`.
 
-4. **Double buffering** - Draw to offscreen canvas, copy to visible. Never clear the visible canvas directly or you get white flash.
+3. **HUD is HTML** - `src/ui/Hud.jsx` (+ `hud.css`) is a normal React/DOM overlay
+   absolutely positioned over the canvas. All buttons/panels/modals live here, not
+   in the 3D scene. The overlay root is `pointer-events: none`; widgets opt back in.
+
+4. **Camera** - orthographic, fixed iso angle, via drei `<OrbitControls>`:
+   wheel = zoom, **right-drag = orbit**, left button is reserved for tile picking.
+
+## File Map
+
+| File | Responsibility |
+|---|---|
+| `src/Game.jsx` | Orchestrator: `gameState` ref, all actions, input, effects |
+| `src/three/FarmScene.jsx` | r3f `<Canvas>`, lighting, camera, all 3D meshes |
+| `src/ui/Hud.jsx` / `hud.css` | HTML overlay UI |
+| `src/game/constants.js` | CROPS, BUILDINGS, SEASONS, grid sizes, helpers |
+| `src/game/logic.js` | A* pathfinding, farmland/walkable checks, snake-queue |
+| `src/game/assets.js` | **Kenney Nature Kit asset registry** (see below) |
+| `src/hooks/useAudio.js` | `useSound`, `useMusic`, `useAmbience` |
+
+## Coordinates
+
+Grid is `WORLD_SIZE` (36×36); the farm field is `FIELD_SIZE` (10×10) at
+`FIELD_OFFSET` (13). In 3D each cell is a 1×1 tile; the world is re-centered on the
+origin: `worldX = gridX - WORLD_SIZE/2 + 0.5`, `worldZ = gridY - WORLD_SIZE/2 + 0.5`
+(see `gx`/`gz` in `FarmScene.jsx`). Tile picking is raycast-based via r3f pointer
+events on each soil tile (`onTilePointerDown` / `onTilePointerEnter` in `Game.jsx`),
+finalized on a global `pointerup`.
+
+## Art Assets — Kenney Nature Kit (CC0)
+
+3D art is the [Nature Kit](https://kenney.nl/assets/nature-kit). A curated subset
+of GLB models is committed in `public/models/nature-kit/` and **enabled**
+(`USE_KENNEY_ASSETS = true` in `src/game/assets.js`). Crops use real growth-stage
+props (`crops_wheatStageA/B`, `crops_cornStageA–D`, `crop_carrot`, `crop_pumpkin`),
+the perimeter is scattered with trees/rocks/bushes (`DECORATIONS`), and buildings
+use tent stand-ins.
+
+Any entity whose model is `null` or whose file fails to load falls back to a
+procedural placeholder (`ModelErrorBoundary` + `Suspense` in `FarmScene.jsx`), so
+the game never crashes on a missing asset.
+
+To add more models: drop the GLB into `public/models/nature-kit/`, reference its
+filename in `MODELS` / `DECORATIONS` in `assets.js`, and tune scale via
+`CROP_TRANSFORM` or the decoration's `s`. The kit has no farmer or barn; the
+farmer is procedural and the silo/farmhouse are tents — add a character/farm kit
+for exact matches.
 
 ## How to Add Features
 
-### Adding a new UI button:
-
-```javascript
-// In getUIButtons(), add to the buttons array:
-buttons.push({
-  id: 'my_button',
-  x: 100, y: 10, w: 60, h: 28,
-  render: (ctx, btn, isHovered) => {
-    drawRoundedRect(ctx, btn.x, btn.y, btn.w, btn.h, 4);
-    ctx.fillStyle = isHovered ? '#AAA' : '#CCC';
-    ctx.fill();
-    ctx.fillStyle = '#333';
-    ctx.font = '12px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('Click Me', btn.x + btn.w/2, btn.y + btn.h/2);
-  },
-  onClick: () => { 
-    // Do something
-    requestRender(); 
-  },
-});
-```
-
-### Adding new game state:
-
-```javascript
-// 1. Add to gameState.current initialization:
-const gameState = useRef({
-  // ... existing state
-  myNewThing: initialValue,
-});
-
-// 2. Use it:
-gs.myNewThing = newValue;
-requestRender();
-
-// 3. If it needs to reset, add to resetGame():
-gs.myNewThing = initialValue;
-```
-
-### Adding a new drawable element:
-
-```javascript
-// In render(), after existing drawing code but before ctx.restore():
-
-// Example: Draw a marker at a specific tile
-const { x: mx, y: my } = getTileScreen(markerX, markerY);
-ctx.beginPath();
-ctx.arc(mx, my + TILE_HEIGHT/2, 10, 0, Math.PI * 2);
-ctx.fillStyle = 'red';
-ctx.fill();
-```
-
-### Adding keyboard shortcut:
-
-```javascript
-// In handleKeyDown switch statement:
-case 'q': 
-  // Do something
-  requestRender();
-  return;
-```
-
-### Adding a sound:
-
-```javascript
-// In useSound(), add to the returned object:
-mySound: () => {
-  playTone(440, 0.1, 'sine', 0.1);  // frequency, duration, type, volume
-},
-
-// Use it:
-sounds.mySound();
-```
-
-## Common Patterns
-
-### Drawing isometric tile:
-```javascript
-const drawTile = (sx, sy, color) => {
-  ctx.beginPath();
-  ctx.moveTo(sx, sy);
-  ctx.lineTo(sx + TILE_WIDTH/2, sy + TILE_HEIGHT/2);
-  ctx.lineTo(sx, sy + TILE_HEIGHT);
-  ctx.lineTo(sx - TILE_WIDTH/2, sy + TILE_HEIGHT/2);
-  ctx.closePath();
-  ctx.fillStyle = color;
-  ctx.fill();
-};
-```
-
-### Converting grid to screen:
-```javascript
-const { x: screenX, y: screenY } = getTileScreen(gridX, gridY);
-```
-
-### Converting mouse to grid:
-```javascript
-const tile = fromIso(mouseX, mouseY, gs.zoom, gs.cameraX, gs.cameraY);
-```
-
-### Rounded rectangle:
-```javascript
-drawRoundedRect(ctx, x, y, width, height, radius);
-ctx.fill();
-ctx.stroke();
-```
-
-### Panel with shadow:
-```javascript
-drawPanel(ctx, x, y, width, height);
-```
+- **New crop**: add to `CROPS` in `constants.js`, add a `crop` entry in
+  `assets.js`. Placeholder geometry in `FarmScene.jsx` `CropPlaceholder` keys off
+  the crop id.
+- **New building**: add to `BUILDINGS`, push into `gs.buildings`, map a model in
+  `assets.js`. `Buildings` in `FarmScene.jsx` renders footprint + label.
+- **New HUD control**: add markup in `Hud.jsx`, style in `hud.css`, wire a
+  callback through the `actions` object built in `Game.jsx`.
+- **New keyboard shortcut**: add a case in the `handleKeyDown` switch in `Game.jsx`.
+- **New sound**: add to the object returned by `useSound` in `useAudio.js`.
 
 ## What NOT to do
 
-1. **Don't use useState for game data** - Causes re-render cascade and white flash
-2. **Don't add React components** - Everything is canvas
-3. **Don't clearRect the visible canvas** - Draw to offscreen, copy over
-4. **Don't forget requestRender()** - After mutating state, call it or nothing updates
-
-## Likely Next Features
-
-Based on game structure, these make sense to add:
-
-1. **More buildings** - Extend BUILDINGS constant, add placement UI
-2. **Save/Load** - localStorage with JSON.stringify(gs)
-3. **Weather effects** - Rain particles in render loop
-4. **Sprinkler automation** - Building that auto-waters adjacent tiles
-5. **Crop varieties** - More entries in CROPS constant
-6. **Sound toggle** - UI button to mute
-7. **Tutorial** - First-time player guidance
-8. **Achievements** - Track milestones
+1. Don't use `useState` for game data — keep it in `gameState.current`.
+2. Don't put gameplay UI inside the 3D `<Canvas>` — it goes in the HTML HUD.
+3. Don't call `requestRender()` from `useFrame` — animate transforms directly.
+4. Don't hardcode model paths in the scene — go through `assets.js`.
 
 ## Running
 
 ```bash
 npm install
-npm run dev
+npm run dev      # http://localhost:5173
+npm run build
 ```
 
-Opens at http://localhost:5173
+## Likely Next Features
 
-## File to Edit
-
-`src/Game.jsx` - That's it. One file.
+Save/Load (localStorage of `gs`), weather particles, sprinkler automation,
+day/night lighting, more crops/buildings, a real farmer character model.

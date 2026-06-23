@@ -1,0 +1,355 @@
+/* HUD overlay — sits above the r3f canvas. The root passes through pointer
+   events so the 3D world stays interactive; individual widgets re-enable them. */
+.hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  font-family: system-ui, sans-serif;
+  user-select: none;
+  z-index: 10;
+}
+.hud button {
+  pointer-events: auto;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.world-label {
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font: bold 10px system-ui, sans-serif;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.hud-title {
+  position: absolute;
+  top: 12px;
+  right: 110px;
+  color: #78350f;
+  font-weight: bold;
+  font-size: 18px;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5);
+}
+
+.season-chip {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  padding: 6px 14px;
+  border-radius: 4px;
+  color: #fff;
+  font-weight: bold;
+  font-size: 12px;
+}
+
+.topright {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 6px;
+}
+.shop-btn {
+  background: #fef9c3;
+  border: 1px solid #ca8a04;
+  color: #78350f;
+  font-weight: bold;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 4px;
+}
+.shop-btn.active { background: #eab308; border-width: 2px; }
+.icon-btn {
+  background: #f3f4f6;
+  border: 1px solid #9ca3af;
+  color: #4a3728;
+  width: 28px;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.panel {
+  pointer-events: auto;
+  background: #f5f0e6;
+  border: 1px solid #8b7355;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+.shop-panel {
+  position: absolute;
+  top: 48px;
+  right: 10px;
+  width: 220px;
+  padding: 10px;
+}
+.panel-head {
+  display: flex;
+  justify-content: space-between;
+  font-weight: bold;
+  color: #4a3728;
+  margin-bottom: 6px;
+}
+.gold { color: #d4a017; font-weight: bold; }
+.shop-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+  font-size: 12px;
+  color: #4a3728;
+}
+.shop-row .shop-name { flex: 1; }
+.shop-row .shop-price { color: #8b7355; }
+.shop-row button {
+  background: #22c55e;
+  color: #fff;
+  border: none;
+  border-radius: 3px;
+  font-weight: bold;
+  font-size: 10px;
+  width: 26px;
+  height: 20px;
+}
+.shop-row button:disabled { background: #ccc; cursor: not-allowed; }
+
+.inventory {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0, 0, 0, 0.85);
+  border: 2px solid #a78bfa;
+  border-radius: 8px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.inv-head { color: #e9d5ff; font-weight: bold; font-size: 10px; text-align: center; }
+.inv-item {
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(100, 100, 100, 0.5);
+  border-radius: 4px;
+  background: rgba(40, 40, 40, 0.9);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.inv-item.empty { opacity: 0.35; }
+.inv-icon { font-size: 20px; }
+.inv-count { color: #fff; font-weight: bold; font-size: 11px; }
+
+.speech {
+  position: absolute;
+  top: 90px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #fff;
+  border: 2px solid #374151;
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 12px;
+  color: #374151;
+  max-width: 60%;
+  text-align: center;
+}
+
+.notification {
+  position: absolute;
+  top: 50px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 18px;
+  border-radius: 6px;
+  color: #fff;
+  font-weight: bold;
+  font-size: 12px;
+  background: #3b82f6;
+}
+.notification.success { background: #22c55e; }
+.notification.error { background: #ef4444; }
+
+.botleft {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.gold-display {
+  background: #fffbeb;
+  border: 1px solid #d97706;
+  color: #d4a017;
+  font-weight: bold;
+  font-size: 14px;
+  padding: 6px 12px;
+  border-radius: 4px;
+}
+.day-display { color: #8b7355; font-size: 12px; }
+
+.action-bar {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.75);
+  border: 3px solid #22c55e;
+  border-radius: 8px;
+}
+.action-cell {
+  width: 56px;
+  height: 56px;
+  background: rgba(35, 35, 35, 0.9);
+  border: 2px solid rgba(120, 120, 120, 0.5);
+  border-radius: 6px;
+  color: #fff;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.action-cell.active { border-width: 3px; }
+.action-icon { font-size: 26px; }
+.action-name { font-size: 10px; font-weight: bold; }
+.keybind { position: absolute; top: 3px; left: 5px; font-size: 10px; opacity: 0.6; }
+
+.child-panel {
+  position: absolute;
+  bottom: 96px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15, 15, 15, 0.95);
+  border: 2px solid #16a34a;
+  border-radius: 8px;
+  padding: 10px;
+}
+.crop-panel { display: flex; gap: 6px; }
+.crop-cell {
+  width: 48px;
+  height: 48px;
+  background: rgba(45, 45, 45, 0.8);
+  border: 2px solid rgba(100, 100, 100, 0.5);
+  border-radius: 6px;
+  position: relative;
+}
+.cell-icon { font-size: 22px; }
+.seed-badge {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.85);
+  color: #fff;
+  font-size: 10px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.seed-badge.out { background: rgba(120, 30, 30, 0.9); color: rgba(200, 200, 200, 0.6); }
+
+.sell-panel { min-width: 200px; }
+.sell-head { color: #fff; font-weight: bold; font-size: 11px; text-align: center; margin-bottom: 8px; }
+.sell-row-wrap { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.sell-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: rgba(40, 40, 40, 0.8);
+  border: 1px solid rgba(100, 100, 100, 0.5);
+  border-radius: 6px;
+  color: #fff;
+  font-size: 12px;
+  padding: 6px 10px;
+}
+.sell-empty { color: rgba(255, 255, 255, 0.6); font-size: 12px; text-align: center; }
+
+.next-turn {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  border: 3px solid #fff;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+}
+.next-turn .arrow { font-size: 28px; font-weight: bold; line-height: 1; }
+.next-turn .next-label { font-size: 12px; font-weight: bold; }
+
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+}
+.modal {
+  width: 420px;
+  background: #1a1a2e;
+  border: 3px solid #3b82f6;
+  border-radius: 12px;
+  padding: 20px;
+  color: #fff;
+}
+.modal h2 { text-align: center; margin: 0 0 4px; font-size: 18px; }
+.modal-sub { text-align: center; color: #aaa; font-size: 12px; margin: 0 0 14px; }
+.modal-rows { display: flex; flex-direction: column; gap: 6px; }
+.modal-row {
+  display: grid;
+  grid-template-columns: 28px 1fr 50px 80px 60px;
+  align-items: center;
+  gap: 8px;
+  background: rgba(30, 41, 59, 0.8);
+  border: 1px solid rgba(100, 116, 139, 0.5);
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: #fff;
+  text-align: left;
+}
+.modal-row.empty { opacity: 0.4; }
+.mr-icon { font-size: 20px; }
+.mr-count { color: #94a3b8; text-align: center; }
+.mr-each { color: #d4a017; font-size: 11px; text-align: center; }
+.mr-total { color: #22c55e; font-weight: bold; text-align: right; }
+.modal-total {
+  display: flex;
+  justify-content: space-between;
+  background: #1e293b;
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin: 14px 0;
+  color: #94a3b8;
+  font-size: 13px;
+}
+.modal-total .gold { font-size: 16px; }
+.modal-actions { display: flex; gap: 10px; }
+.modal-actions button {
+  flex: 1;
+  height: 36px;
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-weight: bold;
+  font-size: 13px;
+}
+.sell-all { background: #16a34a; }
+.sell-all:disabled { background: #374151; color: #666; cursor: not-allowed; }
