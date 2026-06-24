@@ -21,13 +21,14 @@ and sell into the rising market before the next harvest.
 
 **Build order** (each epic builds on the previous; #1 unblocks everything):
 
-### Epic 1 — Calendar & time foundation
-- [ ] Day-based clock: `year` / `season` / `dayOfSeason` derived from a total-day counter; `SEASON_LENGTH ≈ 14`
-- [ ] "Next Day" advances one day; move season-transition events to season boundaries (not every press)
-- [ ] Crops grow per day (remove the instant-mature-on-season-change hack); `growTime` measured in days
-- [ ] Rework action gating: drive actions off crop state (needs water / ready to harvest) instead of rigid per-season locks — *open design Q*
-- [ ] HUD date display (Year / Season / Day X of N); update season chip
+### Epic 1 — Calendar & time foundation  ✅ (v1)
+- [x] Day-based clock: `year` / `season` / `dayOfSeason` from a day counter (`SEASON_LENGTH`, currently 3 — bump later)
+- [x] "Next" advances one day; season-transition events fire only at season boundaries
+- [x] HUD date display (Yr / Day X of N); season chip already shows the season
+- [x] Action gating: **decided — keep season-locked** (plant=spring, water/feed=summer, harvest=fall, sell=winter)
+- [ ] Crops grow per day (remove instant-mature-at-boundary hack) — deferred to **Epic 2**
 - [ ] (pairs well) day/night or seasonal sun angle tied to the clock
+- note: bump `SEASON_LENGTH` toward ~14 once Epic 2/3/4 give in-season days purpose
 
 ### Epic 2 — Crop growth & care
 - [ ] Per-crop `growTime` in days + plantable seasons

@@ -83,7 +83,13 @@ export const SEASON_ACTIONS = {
   winter: [{ id: 'sell', name: 'Sell', icon: '💰' }],
 };
 
-export const seasonForDay = (day) => SEASON_ORDER[(day - 1) % 4];
+// Calendar: each season spans SEASON_LENGTH days; 4 seasons make a year.
+// Tunable — start short so days aren't empty; lengthen toward ~14 once storage
+// and the dynamic market give in-season days purpose.
+export const SEASON_LENGTH = 3;
+export const seasonForDay = (day) => SEASON_ORDER[Math.floor((day - 1) / SEASON_LENGTH) % 4];
+export const yearForDay = (day) => Math.floor((day - 1) / (SEASON_LENGTH * 4)) + 1;
+export const dayOfSeason = (day) => ((day - 1) % SEASON_LENGTH) + 1;
 
 // Fresh empty grid cell
 export const emptyCell = () => ({ crop: null, growth: 0, watered: false, fed: false, harvestPenalty: false });

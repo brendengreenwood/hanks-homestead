@@ -5,8 +5,10 @@ import {
   FIELD_OFFSET,
   FIELD_SIZE,
   SEASON_ACTIONS,
-  SEASON_ORDER,
+  SEASON_LENGTH,
+  SEASONS,
   WORLD_SIZE,
+  dayOfSeason,
   emptyCell,
   makeGrid,
   seasonForDay,
@@ -188,9 +190,19 @@ export default function HanksHomestead() {
 
   const advanceDay = () => {
     const currentSeason = seasonForDay(gs.day);
-    const nextSeason = SEASON_ORDER[gs.day % 4];
     gs.day++;
+    const nextSeason = seasonForDay(gs.day);
 
+    // A plain day within the same season: just advance, light feedback.
+    if (nextSeason === currentSeason) {
+      sounds.click();
+      showNotification(`${SEASONS[nextSeason].name} — Day ${dayOfSeason(gs.day)} of ${SEASON_LENGTH}`, 'info');
+      requestRender();
+      return;
+    }
+
+    // Crossed into a new season — switch the default tool, music, and run the
+    // season-transition event.
     gs.selectedAction = SEASON_ACTIONS[nextSeason][0].id;
     music.changeSeason(nextSeason);
     ambience.changeSeason(nextSeason);

@@ -1,5 +1,5 @@
 import React from 'react';
-import { CROPS, SEASONS, SEASON_ACTIONS, seasonForDay } from '../game/constants.js';
+import { CROPS, SEASONS, SEASON_ACTIONS, seasonForDay, yearForDay, dayOfSeason, SEASON_LENGTH } from '../game/constants.js';
 import './hud.css';
 
 export default function Hud({ gs, actions }) {
@@ -78,7 +78,7 @@ export default function Hud({ gs, actions }) {
       {/* Bottom-left: gold + day */}
       <div className="botleft">
         <div className="gold-display">🪙 {gs.gold}</div>
-        <div className="day-display">Day {gs.day}</div>
+        <div className="day-display">Yr {yearForDay(gs.day)} · Day {dayOfSeason(gs.day)}/{SEASON_LENGTH}</div>
       </div>
 
       {/* Crop selector (plant) */}
