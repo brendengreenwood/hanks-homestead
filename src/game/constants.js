@@ -109,6 +109,13 @@ export const UPGRADES = {
 // Operating cost: gold per crop the sprinklers water each summer day. Automation
 // saves the manual watering, but the running cost eats your margin — your call.
 export const SPRINKLER_COST_PER_TILE = 1;
+
+// ---- Forward contracts -----------------------------------------------------
+// Commit to deliver a quantity of a crop by a future day for a locked price
+// (a premium over the mean — a hedge against a price crash, but you must
+// deliver or pay a penalty).
+export const CONTRACT_SLOTS = 3;
+export const CONTRACT_PENALTY = 0.25; // fraction of contract value forfeited on default
 export const upgradeCost = (key, level) => Math.round(UPGRADES[key].baseCost * Math.pow(UPGRADES[key].growth, level));
 export const fieldHeight = (upgrades) => FIELD_SIZE + (upgrades?.plot || 0) * ROWS_PER_PLOT;
 // Faster action/step timing as the tractor levels up.

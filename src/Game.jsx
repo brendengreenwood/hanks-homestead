@@ -5,6 +5,8 @@ import {
   FIELD_OFFSET,
   FIELD_SIZE,
   SEASON_ACTIONS,
+  CONTRACT_PENALTY,
+  CONTRACT_SLOTS,
   SEASON_LENGTH,
   SEASONS,
   WATER_DAYS,
@@ -34,6 +36,7 @@ const SAVE_KEY = 'hanks-homestead-save-v1';
 const PERSIST_KEYS = [
   'gold', 'day', 'selectedAction', 'selectedCrop', 'inventory',
   'farmerPos', 'farmerDir', 'grid', 'buildings', 'prices', 'priceHistory', 'upgrades', 'sprinklerOn',
+  'contracts', 'contractOffers', 'contractSeq',
 ];
 
 export default function HanksHomestead() {
@@ -53,6 +56,9 @@ export default function HanksHomestead() {
     priceHistory: initialPriceHistory(),
     upgrades: { tractor: 0, sprinkler: 0, silo: 0, plot: 0 },
     sprinklerOn: false,
+    contracts: [],
+    contractOffers: [],
+    contractSeq: 1,
     farmerPos: { x: FIELD_OFFSET + 4, y: FIELD_OFFSET + 4 },
     farmerDir: 'down',
     isMoving: false,
@@ -336,6 +342,54 @@ export default function HanksHomestead() {
     showNotification(`💧 Sprinklers watered ${tiles} crops (−${cost}g)`, 'info');
   };
 
+  // ---- Forward contracts ----
+  const makeContractOffer = () => {
+    const ids = Object.keys(CROPS);
+    const crop = ids[Math.floor(Math.random() * ids.length)];
+    const base = CROPS[crop].sellPrice;
+    const price = Math.round(base * (1.08 + Math.random() * 0.22)); // 8–30% over mean
+    const qty = 8 + Math.floor(Math.random() * 18); // 8–25
+    const due = gs.day + SEASON_LENGTH + Math.floor(Math.random() * SEASON_LENGTH * 2);
+    return { id: gs.contractSeq++, crop, qty, price, due };
+  };
+  const ensureContracts = () => {
+    if (!gs.contracts) gs.contracts = [];
+    if (!gs.contractOffers) gs.contractOffers = [];
+    if (!gs.contractSeq) gs.contractSeq = 1;
+    while (gs.contractOffers.length < CONTRACT_SLOTS) gs.contractOffers.push(makeContractOffer());
+  };
+  const acceptContract = (id) => {
+    const i = gs.contractOffers.findIndex((o) => o.id === id);
+    if (i < 0) return;
+    const [offer] = gs.contractOffers.splice(i, 1);
+    gs.contracts.push(offer);
+    gs.contractOffers.push(makeContractOffer());
+    sounds.buy();
+    showNotification(`Contract signed: ${offer.qty} ${CROPS[offer.crop].icon} by day ${offer.due}`, 'success');
+    requestRender();
+  };
+  // Settle any contracts that have come due (deliver from storage, or pay a penalty).
+  const tickContracts = () => {
+    if (!gs.contracts || gs.contracts.length === 0) return;
+    const remaining = [];
+    for (const k of gs.contracts) {
+      if (gs.day < k.due) { remaining.push(k); continue; }
+      const have = gs.inventory[k.crop] || 0;
+      if (have >= k.qty) {
+        gs.inventory[k.crop] = have - k.qty;
+        gs.gold += k.qty * k.price;
+        sounds.sell();
+        showNotification(`📜 Delivered ${k.qty} ${CROPS[k.crop].icon} — +${k.qty * k.price}g`, 'success');
+      } else {
+        const penalty = Math.round(k.qty * k.price * CONTRACT_PENALTY);
+        gs.gold = Math.max(0, gs.gold - penalty);
+        sounds.error();
+        showNotification(`📜 Contract defaulted! −${penalty}g`, 'error');
+      }
+    }
+    gs.contracts = remaining;
+  };
+
   const advanceDay = () => {
     const currentSeason = seasonForDay(gs.day);
     gs.day++;
@@ -345,6 +399,7 @@ export default function HanksHomestead() {
     growCropsForDay(nextSeason);
     tickMarket();
     spoilTick();
+    tickContracts();
 
     // A plain day within the same season: just advance, light feedback.
     if (nextSeason === currentSeason) {
@@ -357,6 +412,8 @@ export default function HanksHomestead() {
     // Crossed into a new season — switch the default tool, music, and run the
     // season-transition event.
     gs.selectedAction = SEASON_ACTIONS[nextSeason][0].id;
+    gs.contractOffers = []; // fresh offers each season
+    ensureContracts();
     music.changeSeason(nextSeason);
     ambience.changeSeason(nextSeason);
 
@@ -454,6 +511,9 @@ export default function HanksHomestead() {
     gs.showStore = false;
     gs.upgrades = { tractor: 0, sprinkler: 0, silo: 0, plot: 0 };
     gs.sprinklerOn = false;
+    gs.contracts = [];
+    gs.contractOffers = [];
+    gs.contractSeq = 1;
     gs.prices = initialPrices();
     gs.priceHistory = initialPriceHistory();
     try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
@@ -508,6 +568,7 @@ export default function HanksHomestead() {
   useEffect(() => {
     loadedRef.current = loadGame();
     ensureMarket();
+    ensureContracts();
     if (loadedRef.current) requestRender();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -816,6 +877,7 @@ export default function HanksHomestead() {
     toggleShop: () => { gs.showShop = !gs.showShop; requestRender(); },
     toggleStore: () => { gs.showStore = !gs.showStore; requestRender(); },
     buyUpgrade,
+    acceptContract,
     toggleSprinkler: () => { gs.sprinklerOn = !gs.sprinklerOn; requestRender(); },
     openMarket: () => { gs.showSellModal = true; requestRender(); },
     closeSellModal: () => { gs.showSellModal = false; requestRender(); },

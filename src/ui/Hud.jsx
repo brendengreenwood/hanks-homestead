@@ -373,6 +373,27 @@ function SellModal({ gs, actions }) {
           <span className="gold">Total: {totalValue}g</span>
         </div>
 
+        <div className="contracts">
+          <div className="contracts-head">📜 Forward Contracts</div>
+          {(gs.contracts || []).map((k) => {
+            const have = gs.inventory[k.crop] || 0;
+            const dueIn = k.due - gs.day;
+            return (
+              <div className={`contract active ${have >= k.qty ? 'ready' : ''}`} key={`c${k.id}`}>
+                <span>Deliver {k.qty} {CROPS[k.crop].icon} ({have}/{k.qty})</span>
+                <span className="ct-meta">{k.qty * k.price}g · {dueIn}d left</span>
+              </div>
+            );
+          })}
+          {(gs.contractOffers || []).map((k) => (
+            <div className="contract offer" key={`o${k.id}`}>
+              <span>{k.qty} {CROPS[k.crop].icon} @ {k.price}g</span>
+              <span className="ct-meta">{k.qty * k.price}g · due {k.due - gs.day}d</span>
+              <button className="ct-accept" onClick={() => actions.acceptContract(k.id)}>Sign</button>
+            </div>
+          ))}
+        </div>
+
         <div className="modal-actions">
           <button className="sell-all" disabled={totalItems === 0} onClick={actions.sellAll}>
             💰 Sell All ({totalValue}g)

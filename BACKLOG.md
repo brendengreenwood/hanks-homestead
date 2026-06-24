@@ -51,16 +51,18 @@ and sell into the rising market before the next harvest.
 - [x] Market impact: dumping a big batch dips that crop's price (recovers via daily reversion) — rewards spreading sales
 - [x] Spoilage (moved here from Epic 3): perishables lose a daily slice of the stockpile (grain keeps, tomatoes rot fast) — the counter-pressure to holding for the spring peak
 
-### Epic 5 — Marketplace · forward contracts
-- [ ] Offered contracts: deliver qty by a date at a locked price (premium/discount to expected spot)
-- [ ] Fulfillment on the date; penalty for non-delivery
-- [ ] Contracts UI (available / accepted / deadlines)
+### Epic 5 — Marketplace · forward contracts  ✅ (v1)
+- [x] Rotating offers (refresh each season): deliver a qty of a crop by a future day at a locked price (8–30% premium over the mean — a hedge)
+- [x] Auto-settle on the due day: deliver from storage for the locked price, or pay a 25% default penalty
+- [x] Contracts UI inside the elevator: active contracts (with progress + days left) and signable offers
 
-### Epic 6 — Marketplace · futures & speculation
+### Epic 6 — Marketplace · futures & speculation  ⏸ deferred
 - [ ] Futures curve across future dates; tradable positions with expiry
 - [ ] Margin + mark-to-market P&L; close positions early
 - [ ] Consider an "advanced market" toggle so it stays approachable
-- *(heaviest epic — balance carefully)*
+- *DEFERRED: deep speculative sim — margin/liquidation/P&L are very balance-
+  sensitive and risky to build blind. Best done with playtesting once the spot
+  market + contracts have been felt out in real play.*
 
 ### Epic 7 — Progression · land + speed  ✅ (v1)
 - [x] **Farm Supply store** (🚜 Supply button) — third storefront alongside seed shop + elevator
@@ -84,7 +86,9 @@ and sell into the rising market before the next harvest.
 - [ ] A consolidated daily P&L readout (revenue − OpEx) — future polish
 - *decisions: OpEx is per-tile-per-day; can't-pay → auto-off (no debt yet — see Epic 10)*
 
-### Epic 10 — Financing & debt (stretch)
+### Epic 10 — Financing & debt (stretch)  ⏸ deferred
+*DEFERRED alongside Epic 6 — loans/interest/foreclosure are balance-sensitive
+and pair naturally with the futures layer; build both with playtesting.*
 Builds on Epic 9 — borrow capital to invest now, pay it back with interest. Very
 "real farm economics," and a natural answer to the "what if you can't cover OpEx?" question.
 - [ ] Loans from a bank / co-op to fund big purchases (tractor, land, elevator upgrade)
@@ -159,3 +163,11 @@ positions/sizes were built blind and need real-device iteration.
 - [x] Procedural barn + grain silo, then a proper cottage for Hank
 - [x] Smooth move/turn transitions (fix tile teleporting)
 - [x] Barnyard chickens that wander and flee from Hank
+- [x] Save/Load (localStorage autosave + resume)
+- [x] Epic 1: day-tick calendar (multi-day, season-locked)
+- [x] Epic 2: crops grow over days (seasonal moisture model)
+- [x] Epic 3: storage capacity + year-round selling
+- [x] Epic 4: dynamic market (seasonal prices, history, market impact) + spoilage
+- [x] Epic 5: forward contracts
+- [x] Epic 7: Farm Supply store (tractor, silo, field plots)
+- [x] Epics 8+9: sprinklers + operating cost (CapEx vs OpEx)
