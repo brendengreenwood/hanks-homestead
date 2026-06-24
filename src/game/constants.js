@@ -102,9 +102,13 @@ export const SILO_CAPACITY = 60;
 export const ROWS_PER_PLOT = 2; // extra farmland rows per plot purchased
 export const UPGRADES = {
   tractor: { name: 'Tractor', icon: '🚜', max: 3, baseCost: 300, growth: 1.7, desc: 'Hank works faster' },
+  sprinkler: { name: 'Sprinklers', icon: '💧', max: 1, baseCost: 500, growth: 2, desc: 'Auto-water in summer (daily running cost)' },
   silo: { name: 'Silo', icon: '🏗️', max: 6, baseCost: 220, growth: 1.55, desc: `+${SILO_CAPACITY} storage` },
   plot: { name: 'Field Plot', icon: '🟫', max: 6, baseCost: 180, growth: 1.5, desc: `+${ROWS_PER_PLOT} rows of farmland` },
 };
+// Operating cost: gold per crop the sprinklers water each summer day. Automation
+// saves the manual watering, but the running cost eats your margin — your call.
+export const SPRINKLER_COST_PER_TILE = 1;
 export const upgradeCost = (key, level) => Math.round(UPGRADES[key].baseCost * Math.pow(UPGRADES[key].growth, level));
 export const fieldHeight = (upgrades) => FIELD_SIZE + (upgrades?.plot || 0) * ROWS_PER_PLOT;
 // Faster action/step timing as the tractor levels up.

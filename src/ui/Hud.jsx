@@ -281,13 +281,18 @@ function Store({ gs, actions }) {
                   <span className="su-name">{u.name} <small>Lv {lvl}/{u.max}</small></span>
                   <small className="su-desc">{u.desc}</small>
                 </span>
-                <button
-                  className="su-buy"
-                  disabled={maxed || !afford}
-                  onClick={() => actions.buyUpgrade(key)}
-                >
-                  {maxed ? 'Maxed' : `${cost}g`}
-                </button>
+                {key === 'sprinkler' && lvl >= 1 ? (
+                  <button
+                    className={`su-buy toggle ${gs.sprinklerOn ? 'on' : 'off'}`}
+                    onClick={() => actions.toggleSprinkler()}
+                  >
+                    {gs.sprinklerOn ? '💧 On' : 'Off'}
+                  </button>
+                ) : (
+                  <button className="su-buy" disabled={maxed || !afford} onClick={() => actions.buyUpgrade(key)}>
+                    {maxed ? 'Owned' : `${cost}g`}
+                  </button>
+                )}
               </div>
             );
           })}

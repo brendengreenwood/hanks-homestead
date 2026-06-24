@@ -10,6 +10,7 @@ import {
   WATER_DAYS,
   WORLD_SIZE,
   PRICE_HISTORY_LEN,
+  SPRINKLER_COST_PER_TILE,
   UPGRADES,
   dayOfSeason,
   emptyCell,
@@ -32,7 +33,7 @@ import Hud from './ui/Hud.jsx';
 const SAVE_KEY = 'hanks-homestead-save-v1';
 const PERSIST_KEYS = [
   'gold', 'day', 'selectedAction', 'selectedCrop', 'inventory',
-  'farmerPos', 'farmerDir', 'grid', 'buildings', 'prices', 'priceHistory', 'upgrades',
+  'farmerPos', 'farmerDir', 'grid', 'buildings', 'prices', 'priceHistory', 'upgrades', 'sprinklerOn',
 ];
 
 export default function HanksHomestead() {
@@ -50,7 +51,8 @@ export default function HanksHomestead() {
     inventory: { wheat_seeds: 10, carrot_seeds: 10, tomato_seeds: 10, corn_seeds: 10, pumpkin_seeds: 10 },
     prices: initialPrices(),
     priceHistory: initialPriceHistory(),
-    upgrades: { tractor: 0, silo: 0, plot: 0 },
+    upgrades: { tractor: 0, sprinkler: 0, silo: 0, plot: 0 },
+    sprinklerOn: false,
     farmerPos: { x: FIELD_OFFSET + 4, y: FIELD_OFFSET + 4 },
     farmerDir: 'down',
     isMoving: false,
@@ -282,7 +284,9 @@ export default function HanksHomestead() {
   const ensureMarket = () => {
     if (!gs.prices) gs.prices = initialPrices();
     if (!gs.priceHistory) gs.priceHistory = initialPriceHistory();
-    if (!gs.upgrades) gs.upgrades = { tractor: 0, silo: 0, plot: 0 };
+    if (!gs.upgrades) gs.upgrades = { tractor: 0, sprinkler: 0, silo: 0, plot: 0 };
+    if (gs.upgrades.sprinkler === undefined) gs.upgrades.sprinkler = 0;
+    if (gs.sprinklerOn === undefined) gs.sprinklerOn = false;
   };
 
   const buyUpgrade = (key) => {
@@ -296,9 +300,40 @@ export default function HanksHomestead() {
     }
     gs.gold -= cost;
     gs.upgrades[key] = lvl + 1;
+    if (key === 'sprinkler') gs.sprinklerOn = true;
     sounds.buyBulk();
     showNotification(`Bought ${UPGRADES[key].icon} ${UPGRADES[key].name}!`, 'success');
     requestRender();
+  };
+
+  // Sprinklers: each summer day, auto-water planted crops for a per-tile fee.
+  const sprinklerTick = (season) => {
+    if (season !== 'summer' || !gs.upgrades.sprinkler || !gs.sprinklerOn) return;
+    let tiles = 0;
+    for (let y = 0; y < WORLD_SIZE; y++) {
+      for (let x = 0; x < WORLD_SIZE; x++) {
+        const cell = gs.grid[y][x];
+        if (cell.crop && cell.growth < CROPS[cell.crop].growTime) tiles++;
+      }
+    }
+    if (tiles === 0) return;
+    const cost = tiles * SPRINKLER_COST_PER_TILE;
+    if (cost > gs.gold) {
+      gs.sprinklerOn = false;
+      showNotification("Can't afford the sprinklers — switched off!", 'error');
+      return;
+    }
+    gs.gold -= cost;
+    for (let y = 0; y < WORLD_SIZE; y++) {
+      for (let x = 0; x < WORLD_SIZE; x++) {
+        const cell = gs.grid[y][x];
+        if (cell.crop && cell.growth < CROPS[cell.crop].growTime) {
+          cell.moisture = WATER_DAYS;
+          cell.watered = true;
+        }
+      }
+    }
+    showNotification(`💧 Sprinklers watered ${tiles} crops (−${cost}g)`, 'info');
   };
 
   const advanceDay = () => {
@@ -306,6 +341,7 @@ export default function HanksHomestead() {
     gs.day++;
     const nextSeason = seasonForDay(gs.day);
 
+    sprinklerTick(nextSeason);
     growCropsForDay(nextSeason);
     tickMarket();
     spoilTick();
@@ -416,7 +452,8 @@ export default function HanksHomestead() {
     gs.showShop = false;
     gs.showSellModal = false;
     gs.showStore = false;
-    gs.upgrades = { tractor: 0, silo: 0, plot: 0 };
+    gs.upgrades = { tractor: 0, sprinkler: 0, silo: 0, plot: 0 };
+    gs.sprinklerOn = false;
     gs.prices = initialPrices();
     gs.priceHistory = initialPriceHistory();
     try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
@@ -779,6 +816,7 @@ export default function HanksHomestead() {
     toggleShop: () => { gs.showShop = !gs.showShop; requestRender(); },
     toggleStore: () => { gs.showStore = !gs.showStore; requestRender(); },
     buyUpgrade,
+    toggleSprinkler: () => { gs.sprinklerOn = !gs.sprinklerOn; requestRender(); },
     openMarket: () => { gs.showSellModal = true; requestRender(); },
     closeSellModal: () => { gs.showSellModal = false; requestRender(); },
   };

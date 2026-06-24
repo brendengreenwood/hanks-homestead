@@ -70,21 +70,19 @@ and sell into the rising market before the next harvest.
 - [x] Escalating costs as money sinks; everything persists in the save
 - note: decoration props can clip into the field at max expansion — prune later
 
-### Epic 8 — Progression · automation
-- [ ] Sprinklers: buy + place to auto-water tiles in range each day (first automation device)
-- [ ] Tractors/equipment that auto-perform row ops (till / plant / harvest)
-- [ ] Automation buildings; integrates with the operational-cost mechanic below
-- *(depends on a working money loop from the marketplace)*
+### Epic 8 — Progression · automation  ✅ (v1: sprinklers)
+- [x] Sprinklers: buy from Farm Supply; auto-water all planted crops each summer day
+- [x] On/off toggle in the store (shut them off to save money)
+- [ ] Tractors/equipment that auto-perform plant/harvest ops — future
+- *(auto-harvest/plant automation deferred; sprinklers cover watering)*
 
-### Epic 9 — Operational economy (CapEx vs OpEx)
-The "is it worth automating?" tension. Equipment costs money up front (**CapEx**)
-**and** a recurring amount to run (**OpEx**) — so the player weighs manual labor
-(free but hands-on) against automation (costs money but scales and saves effort).
-- [ ] Recurring expense ledger deducted each day/season for active equipment
-- [ ] Sprinklers carry a per-day water/upkeep cost on top of their purchase price
-- [ ] Toggle equipment on/off (e.g., shut the sprinklers off in winter) to control spend
-- [ ] Daily/seasonal P&L readout: revenue − OpEx − upkeep, so ROI is legible at a glance
-- *open Qs: OpEx cadence (per-day vs per-use)? per-tile sprinklers vs a coverage radius? does manual labor cost anything but time? what happens if you can't cover OpEx — equipment idles, or you go into the red?*
+### Epic 9 — Operational economy (CapEx vs OpEx)  ✅ (v1)
+- [x] Sprinklers cost up front (CapEx) **and** a per-tile fee each summer day they
+      run (OpEx) — so automation vs. watering by hand is a real ROI call
+- [x] If you can't cover the daily cost, the sprinklers switch themselves off
+- [x] Toggle on/off to control spend
+- [ ] A consolidated daily P&L readout (revenue − OpEx) — future polish
+- *decisions: OpEx is per-tile-per-day; can't-pay → auto-off (no debt yet — see Epic 10)*
 
 ### Epic 10 — Financing & debt (stretch)
 Builds on Epic 9 — borrow capital to invest now, pay it back with interest. Very
