@@ -7,6 +7,7 @@ import {
   SEASON_ACTIONS,
   SEASON_LENGTH,
   SEASONS,
+  WATER_DAYS,
   WORLD_SIZE,
   dayOfSeason,
   emptyCell,
@@ -128,7 +129,7 @@ export default function HanksHomestead() {
       const seedKey = `${gs.selectedCrop}_seeds`;
       if ((gs.inventory[seedKey] || 0) > 0) {
         gs.inventory[seedKey]--;
-        gs.grid[y][x] = { crop: gs.selectedCrop, growth: 0, watered: false, fed: false, harvestPenalty: false };
+        gs.grid[y][x] = { crop: gs.selectedCrop, growth: 0, moisture: 0, watered: false, fed: false, harvestPenalty: false };
         sounds.plant();
         gs.actionTick++;
         showNotification(`Planted ${CROPS[gs.selectedCrop].icon} ${CROPS[gs.selectedCrop].name}!`, 'success');
@@ -140,6 +141,7 @@ export default function HanksHomestead() {
         showNotification('Can only water in Summer!', 'info');
         return;
       }
+      gs.grid[y][x].moisture = WATER_DAYS;
       gs.grid[y][x].watered = true;
       sounds.water();
       gs.actionTick++;
@@ -188,10 +190,41 @@ export default function HanksHomestead() {
     requestRender();
   };
 
+  // Advance every planted crop one day, based on the day's season:
+  //  • spring — rain keeps soil moist, crops grow freely
+  //  • summer — dry; crops only grow when there's moisture (so you must water).
+  //    A dry day stunts the crop (reduced yield at harvest).
+  //  • fall/winter — no growth.
+  const growCropsForDay = (season) => {
+    if (season !== 'spring' && season !== 'summer') return;
+    for (let y = 0; y < WORLD_SIZE; y++) {
+      for (let x = 0; x < WORLD_SIZE; x++) {
+        const cell = gs.grid[y][x];
+        if (!cell.crop || cell.growth >= CROPS[cell.crop].growTime) continue;
+        if (season === 'spring') {
+          cell.moisture = Math.max(cell.moisture, 2); // spring showers
+          cell.watered = true;
+          cell.growth++;
+        } else {
+          if (cell.moisture > 0) {
+            cell.moisture--;
+            cell.watered = cell.moisture > 0;
+            cell.growth++;
+          } else {
+            cell.watered = false;
+            cell.harvestPenalty = true; // went thirsty — withers a bit
+          }
+        }
+      }
+    }
+  };
+
   const advanceDay = () => {
     const currentSeason = seasonForDay(gs.day);
     gs.day++;
     const nextSeason = seasonForDay(gs.day);
+
+    growCropsForDay(nextSeason);
 
     // A plain day within the same season: just advance, light feedback.
     if (nextSeason === currentSeason) {
@@ -211,22 +244,13 @@ export default function HanksHomestead() {
       sounds.sleep();
       setTimeout(() => {
         sounds.wake();
-        showSpeech("Whoo-wee, it's gettin' hot! Time to water them crops before they shrivel up!", 4000);
+        showSpeech("Whoo-wee, it's gettin' hot! Keep them crops watered or they'll wither!", 4000);
       }, 500);
     } else if (currentSeason === 'summer' && nextSeason === 'fall') {
-      for (let y = 0; y < WORLD_SIZE; y++) {
-        for (let x = 0; x < WORLD_SIZE; x++) {
-          const cell = gs.grid[y][x];
-          if (cell.crop) {
-            cell.growth = CROPS[cell.crop].growTime;
-            if (!cell.watered) cell.harvestPenalty = true;
-          }
-        }
-      }
       sounds.sleep();
       setTimeout(() => {
         sounds.wake();
-        showSpeech("Well I'll be! Look at all them ripe crops! Time to bring in the harvest!", 4000);
+        showSpeech("Harvest time! Reap what's ripened — the well-watered ones did best.", 4000);
       }, 500);
     } else if (currentSeason === 'fall' && nextSeason === 'winter') {
       sounds.sleep();
@@ -555,11 +579,12 @@ export default function HanksHomestead() {
           const seedKey = `${gs.selectedCrop}_seeds`;
           if (!cell.crop && (gs.inventory[seedKey] || 0) > 0) {
             gs.inventory[seedKey]--;
-            gs.grid[next.y][next.x] = { crop: gs.selectedCrop, growth: 0, watered: false, fed: false, harvestPenalty: false };
+            gs.grid[next.y][next.x] = { crop: gs.selectedCrop, growth: 0, moisture: 0, watered: false, fed: false, harvestPenalty: false };
             sounds.plant();
           }
         } else if (actionType === 'water') {
           if (cell.crop && !cell.watered) {
+            gs.grid[next.y][next.x].moisture = WATER_DAYS;
             gs.grid[next.y][next.x].watered = true;
             sounds.water();
           }

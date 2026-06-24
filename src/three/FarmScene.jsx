@@ -97,7 +97,8 @@ function Crop({ cell }) {
   const progress = Math.min(cell.growth / crop.growTime, 1);
   const url = cropModelUrl(cell.crop, mature);
   const t = CROP_TRANSFORM[cell.crop] || { scale: 0.6, y: 0 };
-  const modelScale = (mature ? 1 : 0.7) * t.scale;
+  // sprout grows from ~45% to full size as it ripens, then swaps to the mature model
+  const modelScale = (mature ? 1 : 0.45 + 0.5 * progress) * t.scale;
 
   return (
     <group position={[0, 0.08 + t.y, 0]}>

@@ -30,11 +30,13 @@ and sell into the rising market before the next harvest.
 - [ ] (pairs well) day/night or seasonal sun angle tied to the clock
 - note: bump `SEASON_LENGTH` toward ~14 once Epic 2/3/4 give in-season days purpose
 
-### Epic 2 — Crop growth & care
-- [ ] Per-crop `growTime` in days + plantable seasons
-- [ ] Moisture/fertility model: water decays over days; neglect slows growth or withers the crop
-- [ ] Map growth-stage models to progress %; withered visual
-- *open Q: how punishing is neglect — slowdown vs death?*
+### Epic 2 — Crop growth & care  ✅ (v1)
+- [x] Per-crop `growTime` in days (wheat 6 → pumpkin 9); `SEASON_LENGTH` bumped to 6
+- [x] Moisture model: spring rain grows crops free; summer is dry so they only grow with moisture — water lasts `WATER_DAYS` (3); dry summer days stunt the crop (reduced yield)
+- [x] Sprout scales with growth % so crops visibly grow day to day; mature model swaps in at full growth
+- [x] Neglect = no harvest (stunted) — wheat is the forgiving starter; the rest need watering
+- [ ] Map distinct growth-stage models (kit has wheatStageA/B, cornStageA–D) to progress for richer visuals — future polish
+- [ ] Plantable-season variety per crop — future
 
 ### Epic 3 — Storage
 - [ ] Harvest flows into storage; sell from storage on your own schedule

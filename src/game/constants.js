@@ -63,13 +63,19 @@ export const COLORS = {
   },
 };
 
+// growTime is in DAYS of growth needed to ripen. Spring rain grows crops for
+// free; summer days only count when the soil has moisture (so you must water).
+// Tuned so spring growth alone isn't enough — summer watering is required.
 export const CROPS = {
-  wheat: { name: 'Wheat', growTime: 1, seedPrice: 10, sellPrice: 25, color: '#7D9A4B', matureColor: '#DAA520', icon: '🌾' },
-  carrot: { name: 'Carrot', growTime: 1, seedPrice: 15, sellPrice: 40, color: '#228B22', matureColor: '#32CD32', icon: '🥕' },
-  tomato: { name: 'Tomato', growTime: 1, seedPrice: 20, sellPrice: 55, color: '#2E8B2E', matureColor: '#DC143C', icon: '🍅' },
-  corn: { name: 'Corn', growTime: 1, seedPrice: 25, sellPrice: 75, color: '#6B8E23', matureColor: '#F4D03F', icon: '🌽' },
-  pumpkin: { name: 'Pumpkin', growTime: 1, seedPrice: 40, sellPrice: 120, color: '#2E7D32', matureColor: '#FF7518', icon: '🎃' },
+  wheat: { name: 'Wheat', growTime: 6, seedPrice: 10, sellPrice: 25, color: '#7D9A4B', matureColor: '#DAA520', icon: '🌾' },
+  carrot: { name: 'Carrot', growTime: 8, seedPrice: 15, sellPrice: 40, color: '#228B22', matureColor: '#32CD32', icon: '🥕' },
+  tomato: { name: 'Tomato', growTime: 8, seedPrice: 20, sellPrice: 55, color: '#2E8B2E', matureColor: '#DC143C', icon: '🍅' },
+  corn: { name: 'Corn', growTime: 9, seedPrice: 25, sellPrice: 75, color: '#6B8E23', matureColor: '#F4D03F', icon: '🌽' },
+  pumpkin: { name: 'Pumpkin', growTime: 9, seedPrice: 40, sellPrice: 120, color: '#2E7D32', matureColor: '#FF7518', icon: '🎃' },
 };
+
+// How many days one watering keeps the soil moist.
+export const WATER_DAYS = 3;
 
 export const SEASON_ORDER = ['spring', 'summer', 'fall', 'winter'];
 
@@ -86,13 +92,13 @@ export const SEASON_ACTIONS = {
 // Calendar: each season spans SEASON_LENGTH days; 4 seasons make a year.
 // Tunable — start short so days aren't empty; lengthen toward ~14 once storage
 // and the dynamic market give in-season days purpose.
-export const SEASON_LENGTH = 3;
+export const SEASON_LENGTH = 6;
 export const seasonForDay = (day) => SEASON_ORDER[Math.floor((day - 1) / SEASON_LENGTH) % 4];
 export const yearForDay = (day) => Math.floor((day - 1) / (SEASON_LENGTH * 4)) + 1;
 export const dayOfSeason = (day) => ((day - 1) % SEASON_LENGTH) + 1;
 
 // Fresh empty grid cell
-export const emptyCell = () => ({ crop: null, growth: 0, watered: false, fed: false, harvestPenalty: false });
+export const emptyCell = () => ({ crop: null, growth: 0, moisture: 0, watered: false, fed: false, harvestPenalty: false });
 
 export const makeGrid = () =>
   Array(WORLD_SIZE)
