@@ -1,5 +1,6 @@
 import React from 'react';
-import { CROPS, SEASONS, SEASON_ACTIONS, seasonForDay, yearForDay, dayOfSeason, SEASON_LENGTH } from '../game/constants.js';
+import { CROPS, SEASONS, SEASON_ACTIONS, seasonForDay, yearForDay, dayOfSeason, SEASON_LENGTH, storedTotal } from '../game/constants.js';
+import { storageCapacity } from '../game/logic.js';
 import './hud.css';
 
 export default function Hud({ gs, actions }) {
@@ -10,6 +11,7 @@ export default function Hud({ gs, actions }) {
 
   const harvested = cropEntries.map(([id, c]) => ({ id, c, count: gs.inventory[id] || 0 }));
   const totalHarvested = harvested.reduce((s, h) => s + h.count, 0);
+  const capacity = storageCapacity(gs.buildings);
   const curAction = actionList.find((a) => a.id === gs.selectedAction);
 
   // Seasonal accent flows through CSS variables so the wood/parchment theme stays
@@ -34,6 +36,7 @@ export default function Hud({ gs, actions }) {
 
       {/* Top-right controls */}
       <div className="topright">
+        <button className="shop-btn" onClick={actions.openMarket}>🌾 Sell</button>
         <button className={`shop-btn ${gs.showShop ? 'active' : ''}`} onClick={actions.toggleShop}>
           🏪 Shop
         </button>
@@ -61,7 +64,13 @@ export default function Hud({ gs, actions }) {
 
       {/* Inventory (left-center) */}
       <div className="inventory">
-        <div className="inv-head">🎒 {totalHarvested}</div>
+        <div className="inv-head">🎒 {totalHarvested}/{capacity}</div>
+        <div className="inv-bar">
+          <div
+            className={`inv-bar-fill ${totalHarvested >= capacity ? 'full' : ''}`}
+            style={{ width: `${Math.min(100, (totalHarvested / capacity) * 100)}%` }}
+          />
+        </div>
         {harvested.map(({ id, c, count }) => (
           <div className={`inv-item ${count > 0 ? '' : 'empty'}`} key={id}>
             <span className="inv-icon">{c.icon}</span>
@@ -256,11 +265,12 @@ function SellModal({ gs, actions }) {
   const totalValue = all.reduce((s, x) => s + x.count * x.c.sellPrice, 0);
   const totalItems = all.reduce((s, x) => s + x.count, 0);
 
+  const winter = seasonForDay(gs.day) === 'winter';
   return (
     <div className="modal-backdrop">
       <div className="modal">
-        <h2>❄️ Winter Market ❄️</h2>
-        <p className="modal-sub">Sell your harvest before spring!</p>
+        <h2>{winter ? '❄️ Winter Market ❄️' : '🌾 Grain Elevator'}</h2>
+        <p className="modal-sub">{winter ? 'Sell your harvest before spring!' : 'Sell your stored crops at market price.'}</p>
 
         <div className="modal-rows">
           {all.map(({ id, c, count }) => (
@@ -289,7 +299,7 @@ function SellModal({ gs, actions }) {
             💰 Sell All ({totalValue}g)
           </button>
           <button className="continue" onClick={actions.closeSellModal}>
-            Continue →
+            {winter ? 'Continue →' : 'Done'}
           </button>
         </div>
       </div>

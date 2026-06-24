@@ -38,11 +38,11 @@ and sell into the rising market before the next harvest.
 - [ ] Map distinct growth-stage models (kit has wheatStageA/B, cornStageA–D) to progress for richer visuals — future polish
 - [ ] Plantable-season variety per crop — future
 
-### Epic 3 — Storage
-- [ ] Harvest flows into storage; sell from storage on your own schedule
-- [ ] Capacity tied to silo/elevator buildings (upgrade hook); overflow handling
-- [ ] Per-crop spoilage / shelf life (grain keeps, produce spoils) → creates pressure to sell
-- [ ] Storage HUD: quantities, capacity bar, spoilage timers
+### Epic 3 — Storage  ✅ (v1)
+- [x] Harvest flows into the silo; **selling is year-round** via the elevator (Sell button / modal) — farming actions stay season-locked
+- [x] Capacity tied to silo buildings (`BASE_STORAGE` + silos × `SILO_CAPACITY`, currently 40 + 60 = 100); harvest blocks/caps when the silo is full
+- [x] Storage HUD: capacity bar + stored/total readout (turns red when full)
+- [ ] Per-crop spoilage / shelf life — **deferred to Epic 4** (only a real decision alongside dynamic prices: hold for a better price vs. risk spoiling)
 
 ### Epic 4 — Marketplace · spot pricing
 - [ ] Daily price per commodity: seasonal curve (cheap at harvest glut → climbing toward next harvest) + noise/random walk

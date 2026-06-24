@@ -13,8 +13,9 @@ import {
   emptyCell,
   makeGrid,
   seasonForDay,
+  storedTotal,
 } from './game/constants.js';
-import { buildSelectionQueue, findPath, isFarmland, isWalkable } from './game/logic.js';
+import { buildSelectionQueue, findPath, isFarmland, isWalkable, storageCapacity } from './game/logic.js';
 import { useAmbience, useMusic, useSound } from './hooks/useAudio.js';
 import FarmScene from './three/FarmScene.jsx';
 import Hud from './ui/Hud.jsx';
@@ -167,6 +168,12 @@ export default function HanksHomestead() {
       }
       const cropData = CROPS[cell.crop];
       if (cell.growth >= cropData.growTime) {
+        const space = storageCapacity(gs.buildings) - storedTotal(gs.inventory);
+        if (space <= 0) {
+          sounds.error();
+          showNotification("Silo's full — sell some crops!", 'error');
+          return;
+        }
         let harvestAmount = 1;
         let message = '';
         if (cell.harvestPenalty) {
@@ -175,7 +182,7 @@ export default function HanksHomestead() {
           harvestAmount = 2;
           message = ' (+1 bonus!)';
         }
-        gs.inventory[cell.crop] = (gs.inventory[cell.crop] || 0) + harvestAmount;
+        gs.inventory[cell.crop] = (gs.inventory[cell.crop] || 0) + Math.min(harvestAmount, space);
         gs.grid[y][x] = emptyCell();
         sounds.harvest();
         gs.actionTick++;
@@ -596,10 +603,11 @@ export default function HanksHomestead() {
         } else if (actionType === 'harvest') {
           if (cell.crop) {
             const cropData = CROPS[cell.crop];
-            if (cell.growth >= cropData.growTime) {
+            const space = storageCapacity(gs.buildings) - storedTotal(gs.inventory);
+            if (cell.growth >= cropData.growTime && space > 0) {
               let harvestAmount = 1;
               if (!cell.harvestPenalty && cell.fed) harvestAmount = 2;
-              gs.inventory[cell.crop] = (gs.inventory[cell.crop] || 0) + harvestAmount;
+              gs.inventory[cell.crop] = (gs.inventory[cell.crop] || 0) + Math.min(harvestAmount, space);
               gs.grid[next.y][next.x] = emptyCell();
               sounds.harvest();
             }
@@ -636,7 +644,8 @@ export default function HanksHomestead() {
     sellItem,
     sellAll,
     toggleShop: () => { gs.showShop = !gs.showShop; requestRender(); },
-    closeSellModal: () => { gs.showSellModal = false; showNotification('Winter has arrived!', 'success'); requestRender(); },
+    openMarket: () => { gs.showSellModal = true; requestRender(); },
+    closeSellModal: () => { gs.showSellModal = false; requestRender(); },
   };
 
   return (

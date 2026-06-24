@@ -77,6 +77,13 @@ export const CROPS = {
 // How many days one watering keeps the soil moist.
 export const WATER_DAYS = 3;
 
+// Storage: harvested crops fill the silo(s). Capacity scales with how many silo
+// buildings you own (upgrade hook for the progression epic).
+export const BASE_STORAGE = 40;
+export const SILO_CAPACITY = 60;
+export const storedTotal = (inventory) =>
+  Object.keys(CROPS).reduce((sum, id) => sum + (inventory[id] || 0), 0);
+
 export const SEASON_ORDER = ['spring', 'summer', 'fall', 'winter'];
 
 export const SEASON_ACTIONS = {

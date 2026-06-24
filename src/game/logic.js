@@ -1,7 +1,11 @@
 // ============================================
 // GAME LOGIC (renderer-agnostic, pure functions)
 // ============================================
-import { BUILDINGS, FIELD_OFFSET, FIELD_SIZE, WORLD_SIZE } from './constants.js';
+import { BASE_STORAGE, BUILDINGS, FIELD_OFFSET, FIELD_SIZE, SILO_CAPACITY, WORLD_SIZE } from './constants.js';
+
+// Total crop storage: a base amount plus each silo building's capacity.
+export const storageCapacity = (buildings) =>
+  BASE_STORAGE + buildings.filter((b) => b.type === 'silo').length * SILO_CAPACITY;
 
 export const isFarmland = (x, y) =>
   x >= FIELD_OFFSET && x < FIELD_OFFSET + FIELD_SIZE && y >= FIELD_OFFSET && y < FIELD_OFFSET + FIELD_SIZE;

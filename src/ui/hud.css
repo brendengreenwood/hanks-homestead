@@ -229,6 +229,20 @@
 .inv-item.empty { opacity: 0.45; }
 .inv-icon { font-size: 21px; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.25)); }
 .inv-count { color: var(--ink); font-weight: 700; font-size: 11px; margin-top: -2px; }
+.inv-bar {
+  height: 6px;
+  width: 46px;
+  margin: 0 auto 4px;
+  border-radius: 3px;
+  background: rgba(67, 41, 15, 0.45);
+  overflow: hidden;
+}
+.inv-bar-fill {
+  height: 100%;
+  background: var(--leaf, #5f8a37);
+  transition: width 0.25s ease;
+}
+.inv-bar-fill.full { background: var(--barn, #b5432f); }
 
 /* ---- Hank's speech bubble (world-anchored above his head) --
    Rendered via drei <Html> OUTSIDE the .hud element, so the theme CSS vars
