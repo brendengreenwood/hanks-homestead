@@ -505,10 +505,10 @@
 .modal-rows { display: flex; flex-direction: column; gap: 7px; }
 .modal-row {
   display: grid;
-  grid-template-columns: 28px 1fr 52px 84px 62px;
+  grid-template-columns: 26px 1fr 42px 82px 56px;
   align-items: center;
   gap: 8px;
-  padding: 9px 12px;
+  padding: 8px 12px;
   border-radius: 10px;
   border: 2px solid rgba(67, 41, 15, 0.4);
   background: linear-gradient(180deg, var(--parch-well), #d6bd87);
@@ -520,9 +520,15 @@
 .modal-row:not(.empty):hover { filter: brightness(1.04); }
 .modal-row.empty { opacity: 0.45; cursor: default; }
 .mr-icon { font-size: 21px; }
-.mr-name { font-weight: 700; }
+.mr-name { font-weight: 700; display: flex; flex-direction: column; gap: 1px; }
+.sparkline { display: block; opacity: 0.85; }
 .mr-count { color: var(--ink-soft); text-align: center; }
-.mr-each { color: var(--gold); font-size: 11px; text-align: center; font-weight: 600; }
+.mr-price { color: var(--ink); font-size: 12px; text-align: right; font-weight: 700; display: flex; flex-direction: column; line-height: 1.1; }
+.mr-price.up { color: #2f8a3a; }
+.mr-price.down { color: var(--barn); }
+.mr-price small { font-size: 9px; font-weight: 600; opacity: 0.8; }
+.mr-price small.up { color: #2f8a3a; }
+.mr-price small.down { color: var(--barn); }
 .mr-total { color: var(--leaf); font-weight: 800; text-align: right; }
 .modal-total {
   display: flex;

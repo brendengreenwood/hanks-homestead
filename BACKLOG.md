@@ -44,11 +44,12 @@ and sell into the rising market before the next harvest.
 - [x] Storage HUD: capacity bar + stored/total readout (turns red when full)
 - [ ] Per-crop spoilage / shelf life — **deferred to Epic 4** (only a real decision alongside dynamic prices: hold for a better price vs. risk spoiling)
 
-### Epic 4 — Marketplace · spot pricing
-- [ ] Daily price per commodity: seasonal curve (cheap at harvest glut → climbing toward next harvest) + noise/random walk
-- [ ] Price history + chart; trend indicator
-- [ ] Elevator UI: sell from storage at spot price; replace fixed `sellPrice` with dynamic price (base = long-run mean)
-- *open Q: does dumping a big sell move the price (market impact)?*
+### Epic 4 — Marketplace · spot pricing  ✅ (v1)
+- [x] Daily price per commodity: mean-reverting toward a seasonal target (peaks in spring, bottoms at the fall glut) + noise
+- [x] Price history + per-crop sparkline + trend arrow + %-vs-mean in the elevator
+- [x] Elevator sells at the live spot price (base `sellPrice` = long-run mean)
+- [x] Market impact: dumping a big batch dips that crop's price (recovers via daily reversion) — rewards spreading sales
+- [x] Spoilage (moved here from Epic 3): perishables lose a daily slice of the stockpile (grain keeps, tomatoes rot fast) — the counter-pressure to holding for the spring peak
 
 ### Epic 5 — Marketplace · forward contracts
 - [ ] Offered contracts: deliver qty by a date at a locked price (premium/discount to expected spot)

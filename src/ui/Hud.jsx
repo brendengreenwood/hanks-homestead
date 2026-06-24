@@ -119,7 +119,7 @@ export default function Hud({ gs, actions }) {
               {harvested.filter((h) => h.count > 0).map(({ id, c, count }) => (
                 <button className="sell-item" key={id} onClick={() => actions.sellItem(id)}>
                   <span>{c.icon} ×{count}</span>
-                  <span className="gold">{c.sellPrice}g</span>
+                  <span className="gold">{gs.prices?.[id] ?? c.sellPrice}g</span>
                 </button>
               ))}
             </div>
@@ -260,9 +260,26 @@ function TouchControls({ gs, actions, actionList, curAction, cropEntries }) {
   );
 }
 
+function Sparkline({ data, w = 72, h = 16 }) {
+  if (!data || data.length < 2) return <svg className="sparkline" width={w} height={h} />;
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+  const pts = data
+    .map((v, i) => `${((i / (data.length - 1)) * w).toFixed(1)},${(h - 1 - ((v - min) / range) * (h - 2)).toFixed(1)}`)
+    .join(' ');
+  const rising = data[data.length - 1] >= data[0];
+  return (
+    <svg className="sparkline" width={w} height={h}>
+      <polyline points={pts} fill="none" stroke={rising ? '#2f8a3a' : '#b5432f'} strokeWidth="1.5" />
+    </svg>
+  );
+}
+
 function SellModal({ gs, actions }) {
-  const all = Object.entries(CROPS).map(([id, c]) => ({ id, c, count: gs.inventory[id] || 0 }));
-  const totalValue = all.reduce((s, x) => s + x.count * x.c.sellPrice, 0);
+  const priceOf = (id) => gs.prices?.[id] ?? CROPS[id].sellPrice;
+  const all = Object.entries(CROPS).map(([id, c]) => ({ id, c, count: gs.inventory[id] || 0, price: priceOf(id) }));
+  const totalValue = all.reduce((s, x) => s + x.count * x.price, 0);
   const totalItems = all.reduce((s, x) => s + x.count, 0);
 
   const winter = seasonForDay(gs.day) === 'winter';
@@ -270,23 +287,36 @@ function SellModal({ gs, actions }) {
     <div className="modal-backdrop">
       <div className="modal">
         <h2>{winter ? '❄️ Winter Market ❄️' : '🌾 Grain Elevator'}</h2>
-        <p className="modal-sub">{winter ? 'Sell your harvest before spring!' : 'Sell your stored crops at market price.'}</p>
+        <p className="modal-sub">{winter ? 'Sell your harvest before spring!' : 'Prices rise toward harvest, dip at the glut — time it well.'}</p>
 
         <div className="modal-rows">
-          {all.map(({ id, c, count }) => (
-            <button
-              key={id}
-              className={`modal-row ${count > 0 ? '' : 'empty'}`}
-              disabled={count === 0}
-              onClick={() => actions.sellItem(id, true)}
-            >
-              <span className="mr-icon">{c.icon}</span>
-              <span className="mr-name">{c.name}</span>
-              <span className="mr-count">×{count}</span>
-              <span className="mr-each">{c.sellPrice}g each</span>
-              <span className="mr-total">{count * c.sellPrice}g</span>
-            </button>
-          ))}
+          {all.map(({ id, c, count, price }) => {
+            const hist = gs.priceHistory?.[id] || [];
+            const prev = hist.length >= 2 ? hist[hist.length - 2] : price;
+            const trend = price > prev ? '▲' : price < prev ? '▼' : '·';
+            const trendCls = price > prev ? 'up' : price < prev ? 'down' : '';
+            const vsMean = Math.round(((price - c.sellPrice) / c.sellPrice) * 100);
+            return (
+              <button
+                key={id}
+                className={`modal-row ${count > 0 ? '' : 'empty'}`}
+                disabled={count === 0}
+                onClick={() => actions.sellItem(id, true)}
+              >
+                <span className="mr-icon">{c.icon}</span>
+                <span className="mr-name">
+                  {c.name}
+                  <Sparkline data={hist} />
+                </span>
+                <span className="mr-count">×{count}</span>
+                <span className={`mr-price ${trendCls}`}>
+                  {price}g {trend}
+                  <small className={vsMean >= 0 ? 'up' : 'down'}>{vsMean >= 0 ? '+' : ''}{vsMean}%</small>
+                </span>
+                <span className="mr-total">{count * price}g</span>
+              </button>
+            );
+          })}
         </div>
 
         <div className="modal-total">

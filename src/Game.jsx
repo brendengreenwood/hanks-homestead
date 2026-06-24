@@ -9,10 +9,14 @@ import {
   SEASONS,
   WATER_DAYS,
   WORLD_SIZE,
+  PRICE_HISTORY_LEN,
   dayOfSeason,
   emptyCell,
+  initialPriceHistory,
+  initialPrices,
   makeGrid,
   seasonForDay,
+  seasonalPriceFactor,
   storedTotal,
 } from './game/constants.js';
 import { buildSelectionQueue, findPath, isFarmland, isWalkable, storageCapacity } from './game/logic.js';
@@ -24,7 +28,7 @@ import Hud from './ui/Hud.jsx';
 const SAVE_KEY = 'hanks-homestead-save-v1';
 const PERSIST_KEYS = [
   'gold', 'day', 'selectedAction', 'selectedCrop', 'inventory',
-  'farmerPos', 'farmerDir', 'grid', 'buildings',
+  'farmerPos', 'farmerDir', 'grid', 'buildings', 'prices', 'priceHistory',
 ];
 
 export default function HanksHomestead() {
@@ -40,6 +44,8 @@ export default function HanksHomestead() {
     selectedAction: 'plant',
     selectedCrop: 'wheat',
     inventory: { wheat_seeds: 10, carrot_seeds: 10, tomato_seeds: 10, corn_seeds: 10, pumpkin_seeds: 10 },
+    prices: initialPrices(),
+    priceHistory: initialPriceHistory(),
     farmerPos: { x: FIELD_OFFSET + 4, y: FIELD_OFFSET + 4 },
     farmerDir: 'down',
     isMoving: false,
@@ -233,12 +239,53 @@ export default function HanksHomestead() {
     }
   };
 
+  // Market: mean-revert each crop's price toward its seasonal target, plus noise.
+  const tickMarket = () => {
+    for (const [id, c] of Object.entries(CROPS)) {
+      const target = c.sellPrice * seasonalPriceFactor(gs.day) * (0.94 + Math.random() * 0.12);
+      const cur = gs.prices[id] ?? c.sellPrice;
+      let next = Math.round(cur + (target - cur) * 0.4);
+      next = Math.max(Math.round(c.sellPrice * 0.4), Math.min(Math.round(c.sellPrice * 1.9), next));
+      gs.prices[id] = next;
+      const h = gs.priceHistory[id] || (gs.priceHistory[id] = []);
+      h.push(next);
+      if (h.length > PRICE_HISTORY_LEN) h.shift();
+    }
+  };
+
+  // Spoilage: perishables lose a slice of the stockpile each day (grain keeps).
+  const spoilTick = () => {
+    let spoiled = 0;
+    for (const [id, c] of Object.entries(CROPS)) {
+      const count = gs.inventory[id] || 0;
+      if (count > 0 && c.shelfLife < 999) {
+        const lost = Math.floor(count / c.shelfLife);
+        if (lost > 0) { gs.inventory[id] -= lost; spoiled += lost; }
+      }
+    }
+    if (spoiled > 0) showNotification(`${spoiled} crop${spoiled > 1 ? 's' : ''} spoiled — sell perishables sooner!`, 'info');
+  };
+
+  // Selling nudges a crop's price down; it recovers via daily mean-reversion.
+  const applyMarketImpact = (id, qty) => {
+    const c = CROPS[id];
+    const drop = Math.min(0.25, qty * 0.004);
+    gs.prices[id] = Math.max(Math.round(c.sellPrice * 0.4), Math.round((gs.prices[id] ?? c.sellPrice) * (1 - drop)));
+  };
+
+  const ensureMarket = () => {
+    if (!gs.prices) gs.prices = initialPrices();
+    if (!gs.priceHistory) gs.priceHistory = initialPriceHistory();
+  };
+
   const advanceDay = () => {
     const currentSeason = seasonForDay(gs.day);
     gs.day++;
     const nextSeason = seasonForDay(gs.day);
 
     growCropsForDay(nextSeason);
+    tickMarket();
+    spoilTick();
 
     // A plain day within the same season: just advance, light feedback.
     if (nextSeason === currentSeason) {
@@ -287,27 +334,33 @@ export default function HanksHomestead() {
   const sellItem = (item, all = false) => {
     const count = gs.inventory[item] || 0;
     if (count <= 0) return;
-    if (all) {
-      gs.gold += count * CROPS[item].sellPrice;
-      gs.inventory[item] = 0;
-    } else {
-      gs.inventory[item]--;
-      gs.gold += CROPS[item].sellPrice;
-    }
+    const qty = all ? count : 1;
+    const price = gs.prices[item] ?? CROPS[item].sellPrice;
+    gs.gold += price * qty;
+    gs.inventory[item] -= qty;
+    applyMarketImpact(item, qty);
     sounds.sell();
-    showNotification(`Sold ${CROPS[item].icon} ${CROPS[item].name}!`, 'success');
+    showNotification(`Sold ${qty} ${CROPS[item].icon} for ${price * qty}g!`, 'success');
     requestRender();
   };
 
   const sellAll = () => {
     let sold = 0;
+    let earned = 0;
     for (const item of Object.keys(CROPS)) {
       const count = gs.inventory[item] || 0;
-      gs.gold += count * CROPS[item].sellPrice;
+      if (count <= 0) continue;
+      const price = gs.prices[item] ?? CROPS[item].sellPrice;
+      earned += price * count;
+      gs.gold += price * count;
       gs.inventory[item] = 0;
+      applyMarketImpact(item, count);
       sold += count;
     }
-    if (sold > 0) sounds.sell();
+    if (sold > 0) {
+      sounds.sell();
+      showNotification(`Sold ${sold} crops for ${earned}g!`, 'success');
+    }
     requestRender();
   };
 
@@ -390,6 +443,7 @@ export default function HanksHomestead() {
   // Load a saved game on mount (before the welcome plays).
   useEffect(() => {
     loadedRef.current = loadGame();
+    ensureMarket();
     if (loadedRef.current) requestRender();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 

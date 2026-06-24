@@ -66,13 +66,29 @@ export const COLORS = {
 // growTime is in DAYS of growth needed to ripen. Spring rain grows crops for
 // free; summer days only count when the soil has moisture (so you must water).
 // Tuned so spring growth alone isn't enough — summer watering is required.
+// sellPrice is the long-run mean the market reverts to. shelfLife = days a full
+// batch survives in storage before it's gone (grain keeps; produce spoils fast).
 export const CROPS = {
-  wheat: { name: 'Wheat', growTime: 6, seedPrice: 10, sellPrice: 25, color: '#7D9A4B', matureColor: '#DAA520', icon: '🌾' },
-  carrot: { name: 'Carrot', growTime: 8, seedPrice: 15, sellPrice: 40, color: '#228B22', matureColor: '#32CD32', icon: '🥕' },
-  tomato: { name: 'Tomato', growTime: 8, seedPrice: 20, sellPrice: 55, color: '#2E8B2E', matureColor: '#DC143C', icon: '🍅' },
-  corn: { name: 'Corn', growTime: 9, seedPrice: 25, sellPrice: 75, color: '#6B8E23', matureColor: '#F4D03F', icon: '🌽' },
-  pumpkin: { name: 'Pumpkin', growTime: 9, seedPrice: 40, sellPrice: 120, color: '#2E7D32', matureColor: '#FF7518', icon: '🎃' },
+  wheat: { name: 'Wheat', growTime: 6, seedPrice: 10, sellPrice: 25, shelfLife: 999, color: '#7D9A4B', matureColor: '#DAA520', icon: '🌾' },
+  carrot: { name: 'Carrot', growTime: 8, seedPrice: 15, sellPrice: 40, shelfLife: 14, color: '#228B22', matureColor: '#32CD32', icon: '🥕' },
+  tomato: { name: 'Tomato', growTime: 8, seedPrice: 20, sellPrice: 55, shelfLife: 8, color: '#2E8B2E', matureColor: '#DC143C', icon: '🍅' },
+  corn: { name: 'Corn', growTime: 9, seedPrice: 25, sellPrice: 75, shelfLife: 30, color: '#6B8E23', matureColor: '#F4D03F', icon: '🌽' },
+  pumpkin: { name: 'Pumpkin', growTime: 9, seedPrice: 40, sellPrice: 120, shelfLife: 20, color: '#2E7D32', matureColor: '#FF7518', icon: '🎃' },
 };
+
+// ---- Market ----------------------------------------------------------------
+export const PRICE_AMP = 0.35; // seasonal swing (±35% around the mean)
+export const PRICE_HISTORY_LEN = 24; // days of history kept for the chart
+// Seasonal supply cycle: prices bottom in fall (harvest glut) and peak in
+// spring (lean season before the next harvest).
+export const seasonalPriceFactor = (day) => {
+  const yearLen = SEASON_LENGTH * 4;
+  const doy = (day - 1) % yearLen;
+  return 1 + PRICE_AMP * Math.cos((2 * Math.PI * (doy - SEASON_LENGTH * 0.5)) / yearLen);
+};
+export const initialPrices = () =>
+  Object.fromEntries(Object.entries(CROPS).map(([id, c]) => [id, Math.round(c.sellPrice * seasonalPriceFactor(1))]));
+export const initialPriceHistory = () => Object.fromEntries(Object.keys(CROPS).map((id) => [id, []]));
 
 // How many days one watering keeps the soil moist.
 export const WATER_DAYS = 3;
