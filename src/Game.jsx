@@ -20,6 +20,13 @@ import { useAmbience, useMusic, useSound } from './hooks/useAudio.js';
 import FarmScene from './three/FarmScene.jsx';
 import Hud from './ui/Hud.jsx';
 
+// localStorage save: only the persistent game fields (not transient UI/anim state).
+const SAVE_KEY = 'hanks-homestead-save-v1';
+const PERSIST_KEYS = [
+  'gold', 'day', 'selectedAction', 'selectedCrop', 'inventory',
+  'farmerPos', 'farmerDir', 'grid', 'buildings',
+];
+
 export default function HanksHomestead() {
   const sounds = useSound();
   const music = useMusic(sounds.getAudioContext);
@@ -332,8 +339,32 @@ export default function HanksHomestead() {
     gs.pendingActionType = null;
     gs.showShop = false;
     gs.showSellModal = false;
+    try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
     setTimeout(() => showSpeech("Alrighty, fresh start! Let's make this the best darn harvest yet!", 4000), 300);
     requestRender();
+  };
+
+  // ============================================
+  // SAVE / LOAD (localStorage)
+  // ============================================
+  const loadedRef = useRef(false);
+  const saveGame = () => {
+    try {
+      const snap = {};
+      for (const k of PERSIST_KEYS) snap[k] = gs[k];
+      localStorage.setItem(SAVE_KEY, JSON.stringify(snap));
+    } catch (e) {}
+  };
+  const loadGame = () => {
+    try {
+      const raw = localStorage.getItem(SAVE_KEY);
+      if (!raw) return false;
+      const snap = JSON.parse(raw);
+      for (const k of PERSIST_KEYS) if (snap[k] !== undefined) gs[k] = snap[k];
+      return true;
+    } catch (e) {
+      return false;
+    }
   };
 
   // ============================================
@@ -356,9 +387,28 @@ export default function HanksHomestead() {
     }
   }, [music, ambience]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Welcome message
+  // Load a saved game on mount (before the welcome plays).
   useEffect(() => {
-    const t = setTimeout(() => showSpeech("Howdy! Welcome to Hank's Homestead! It's plantin' season, partner!", 4000), 600);
+    loadedRef.current = loadGame();
+    if (loadedRef.current) requestRender();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Debounced autosave whenever state changes, plus a save on unload.
+  useEffect(() => {
+    const t = setTimeout(saveGame, 800);
+    return () => clearTimeout(t);
+  }, [version]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    window.addEventListener('beforeunload', saveGame);
+    return () => window.removeEventListener('beforeunload', saveGame);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Welcome message (only on a fresh game)
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (loadedRef.current) showSpeech('Welcome back, partner! Right where you left off.', 3500);
+      else showSpeech("Howdy! Welcome to Hank's Homestead! It's plantin' season, partner!", 4000);
+    }, 600);
     return () => clearTimeout(t);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
