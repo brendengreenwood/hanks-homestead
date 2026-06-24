@@ -1,5 +1,5 @@
 import React from 'react';
-import { CROPS, SEASONS, SEASON_ACTIONS, seasonForDay, yearForDay, dayOfSeason, SEASON_LENGTH, storedTotal } from '../game/constants.js';
+import { CROPS, SEASONS, SEASON_ACTIONS, seasonForDay, yearForDay, dayOfSeason, SEASON_LENGTH, storedTotal, UPGRADES, upgradeCost } from '../game/constants.js';
 import { storageCapacity } from '../game/logic.js';
 import './hud.css';
 
@@ -40,6 +40,7 @@ export default function Hud({ gs, actions }) {
         <button className={`shop-btn ${gs.showShop ? 'active' : ''}`} onClick={actions.toggleShop}>
           🏪 Shop
         </button>
+        <button className="shop-btn" onClick={actions.toggleStore}>🚜 Supply</button>
         <button className="icon-btn" title="Reset game" onClick={actions.resetGame}>↺</button>
       </div>
 
@@ -160,8 +161,9 @@ export default function Hud({ gs, actions }) {
         cropEntries={cropEntries}
       />
 
-      {/* Winter sell modal */}
+      {/* Market + Farm Supply modals */}
       {gs.showSellModal && <SellModal gs={gs} actions={actions} />}
+      {gs.showStore && <Store gs={gs} actions={actions} />}
     </div>
   );
 }
@@ -255,6 +257,48 @@ function TouchControls({ gs, actions, actionList, curAction, cropEntries }) {
         </button>
         <button className="dpad-btn right" onClick={() => actions.move('right')} aria-label="Move right">▶</button>
         <button className="dpad-btn down" onClick={() => actions.move('down')} aria-label="Move down">▼</button>
+      </div>
+    </div>
+  );
+}
+
+function Store({ gs, actions }) {
+  return (
+    <div className="modal-backdrop">
+      <div className="modal store-modal">
+        <h2>🚜 Farm Supply</h2>
+        <p className="modal-sub">Invest the harvest back into the homestead.</p>
+        <div className="store-rows">
+          {Object.entries(UPGRADES).map(([key, u]) => {
+            const lvl = gs.upgrades?.[key] || 0;
+            const maxed = lvl >= u.max;
+            const cost = upgradeCost(key, lvl);
+            const afford = gs.gold >= cost;
+            return (
+              <div className="store-row" key={key}>
+                <span className="su-icon">{u.icon}</span>
+                <span className="su-info">
+                  <span className="su-name">{u.name} <small>Lv {lvl}/{u.max}</small></span>
+                  <small className="su-desc">{u.desc}</small>
+                </span>
+                <button
+                  className="su-buy"
+                  disabled={maxed || !afford}
+                  onClick={() => actions.buyUpgrade(key)}
+                >
+                  {maxed ? 'Maxed' : `${cost}g`}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+        <div className="modal-total">
+          <span>Your gold</span>
+          <span className="gold">🪙 {gs.gold}</span>
+        </div>
+        <div className="modal-actions">
+          <button className="continue" onClick={actions.toggleStore}>Done</button>
+        </div>
       </div>
     </div>
   );

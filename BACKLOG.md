@@ -62,11 +62,13 @@ and sell into the rising market before the next harvest.
 - [ ] Consider an "advanced market" toggle so it stays approachable
 - *(heaviest epic — balance carefully)*
 
-### Epic 7 — Progression · land + speed
-- [ ] **Farm Supply / Hardware Market** — a third storefront (alongside the seed shop & grain elevator) for buying equipment, tools & upgrades
-- [ ] Buyable field parcels adjacent to the field; purchasing unlocks more farmable area; cost scaling
-- [ ] Equipment/tools: faster walk, faster action cadence, bigger / multi-tile action radius (tractor)
-- [ ] Gold balancing so the money loop has meaningful sinks
+### Epic 7 — Progression · land + speed  ✅ (v1)
+- [x] **Farm Supply store** (🚜 Supply button) — third storefront alongside seed shop + elevator
+- [x] Field plots: buy up to 6 plots, each adds 2 rows of farmland (10×10 → 10×22); field/picking grow dynamically
+- [x] Tractor: faster auto-walk + auto-farm cadence (up to ~2.8× at max level)
+- [x] Silo upgrade: +60 storage each (stacks with built silos)
+- [x] Escalating costs as money sinks; everything persists in the save
+- note: decoration props can clip into the field at max expansion — prune later
 
 ### Epic 8 — Progression · automation
 - [ ] Sprinklers: buy + place to auto-water tiles in range each day (first automation device)

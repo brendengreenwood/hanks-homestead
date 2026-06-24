@@ -3,12 +3,12 @@
 // ============================================
 import { BASE_STORAGE, BUILDINGS, FIELD_OFFSET, FIELD_SIZE, SILO_CAPACITY, WORLD_SIZE } from './constants.js';
 
-// Total crop storage: a base amount plus each silo building's capacity.
-export const storageCapacity = (buildings) =>
-  BASE_STORAGE + buildings.filter((b) => b.type === 'silo').length * SILO_CAPACITY;
+// Total crop storage: a base amount plus each silo (built + bought) capacity.
+export const storageCapacity = (buildings, boughtSilos = 0) =>
+  BASE_STORAGE + (buildings.filter((b) => b.type === 'silo').length + boughtSilos) * SILO_CAPACITY;
 
-export const isFarmland = (x, y) =>
-  x >= FIELD_OFFSET && x < FIELD_OFFSET + FIELD_SIZE && y >= FIELD_OFFSET && y < FIELD_OFFSET + FIELD_SIZE;
+export const isFarmland = (x, y, fieldH = FIELD_SIZE) =>
+  x >= FIELD_OFFSET && x < FIELD_OFFSET + FIELD_SIZE && y >= FIELD_OFFSET && y < FIELD_OFFSET + fieldH;
 
 export const getBuildingAt = (buildings, x, y) => {
   for (const building of buildings) {
@@ -81,7 +81,7 @@ export const findPath = (buildings, startX, startY, endX, endY) => {
 
 // Build a boustrophedon ("snake") queue of farmable cells from a drag selection,
 // starting near `start` so the farmer walks the field efficiently.
-export const buildSelectionQueue = (start, end) => {
+export const buildSelectionQueue = (start, end, fieldH = FIELD_SIZE) => {
   const minX = Math.min(start.x, end.x);
   const maxX = Math.max(start.x, end.x);
   const minY = Math.min(start.y, end.y);
@@ -99,11 +99,11 @@ export const buildSelectionQueue = (start, end) => {
     const goingRight = startFromLeft ? rowIndex % 2 === 0 : rowIndex % 2 === 1;
     if (goingRight) {
       for (let px = minX; px <= maxX; px++) {
-        if (isFarmland(px, py)) queue.push({ x: px, y: py });
+        if (isFarmland(px, py, fieldH)) queue.push({ x: px, y: py });
       }
     } else {
       for (let px = maxX; px >= minX; px--) {
-        if (isFarmland(px, py)) queue.push({ x: px, y: py });
+        if (isFarmland(px, py, fieldH)) queue.push({ x: px, y: py });
       }
     }
   });

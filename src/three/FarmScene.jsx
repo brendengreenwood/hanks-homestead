@@ -3,7 +3,7 @@ import { Canvas, useFrame, createPortal } from '@react-three/fiber';
 import { OrbitControls, OrthographicCamera, useGLTF, useAnimations, Html } from '@react-three/drei';
 import * as THREE from 'three';
 
-import { CROPS, BUILDINGS, SEASONS, COLORS, WORLD_SIZE, FIELD_OFFSET, FIELD_SIZE, seasonForDay } from '../game/constants.js';
+import { CROPS, BUILDINGS, SEASONS, COLORS, WORLD_SIZE, FIELD_OFFSET, FIELD_SIZE, seasonForDay, fieldHeight } from '../game/constants.js';
 import { isFarmland } from '../game/logic.js';
 import { modelUrl, cropModelUrl, CROP_TRANSFORM, DECORATIONS, FARMER } from '../game/assets.js';
 
@@ -159,31 +159,32 @@ function Tile({ x, y, cell, hovered, selected }) {
 // touch implicitly captures the pointer to the pointerdown target, so per-tile
 // onPointerOver never fires mid-drag. We raycast the plane and derive the tile
 // from the hit point, which behaves identically for mouse and touch.
-const FIELD_CX = (gx(FIELD_OFFSET) + gx(FIELD_OFFSET + FIELD_SIZE - 1)) / 2;
-const FIELD_CZ = (gz(FIELD_OFFSET) + gz(FIELD_OFFSET + FIELD_SIZE - 1)) / 2;
-const clampField = (v) => Math.max(FIELD_OFFSET, Math.min(FIELD_OFFSET + FIELD_SIZE - 1, v));
-const pointToTile = (p) => ({
-  x: clampField(Math.round(p.x + HALF - 0.5)),
-  y: clampField(Math.round(p.z + HALF - 0.5)),
+const clampW = (v) => Math.max(FIELD_OFFSET, Math.min(FIELD_OFFSET + FIELD_SIZE - 1, v));
+const clampH = (v, fieldH) => Math.max(FIELD_OFFSET, Math.min(FIELD_OFFSET + fieldH - 1, v));
+const pointToTile = (p, fieldH) => ({
+  x: clampW(Math.round(p.x + HALF - 0.5)),
+  y: clampH(Math.round(p.z + HALF - 0.5), fieldH),
 });
 
-function FieldPlane({ onDown, onMove }) {
+function FieldPlane({ fieldH, onDown, onMove }) {
+  const cx = (gx(FIELD_OFFSET) + gx(FIELD_OFFSET + FIELD_SIZE - 1)) / 2;
+  const cz = (gz(FIELD_OFFSET) + gz(FIELD_OFFSET + fieldH - 1)) / 2;
   return (
     <mesh
-      position={[FIELD_CX, 0.16, FIELD_CZ]}
+      position={[cx, 0.16, cz]}
       rotation={[-Math.PI / 2, 0, 0]}
       onPointerDown={(e) => {
         e.stopPropagation();
-        const t = pointToTile(e.point);
+        const t = pointToTile(e.point, fieldH);
         onDown(t.x, t.y);
       }}
       onPointerMove={(e) => {
         if (!e.point) return;
-        const t = pointToTile(e.point);
+        const t = pointToTile(e.point, fieldH);
         onMove(t.x, t.y);
       }}
     >
-      <planeGeometry args={[FIELD_SIZE, FIELD_SIZE]} />
+      <planeGeometry args={[FIELD_SIZE, fieldH]} />
       <meshBasicMaterial transparent opacity={0} depthWrite={false} />
     </mesh>
   );
@@ -191,6 +192,7 @@ function FieldPlane({ onDown, onMove }) {
 
 function Field({ gs, onPointerDown, onPointerEnter }) {
   const tiles = [];
+  const fieldH = fieldHeight(gs.upgrades);
   const sel = gs.selectionStart && gs.selectionEnd;
   const inSel = (x, y) => {
     if (!sel) return false;
@@ -201,7 +203,7 @@ function Field({ gs, onPointerDown, onPointerEnter }) {
     return x >= minX && x <= maxX && y >= minY && y <= maxY;
   };
 
-  for (let y = FIELD_OFFSET; y < FIELD_OFFSET + FIELD_SIZE; y++) {
+  for (let y = FIELD_OFFSET; y < FIELD_OFFSET + fieldH; y++) {
     for (let x = FIELD_OFFSET; x < FIELD_OFFSET + FIELD_SIZE; x++) {
       const hovered = gs.hoveredTile && gs.hoveredTile.x === x && gs.hoveredTile.y === y;
       tiles.push(
@@ -212,7 +214,7 @@ function Field({ gs, onPointerDown, onPointerEnter }) {
   return (
     <group>
       {tiles}
-      <FieldPlane onDown={onPointerDown} onMove={onPointerEnter} />
+      <FieldPlane fieldH={fieldH} onDown={onPointerDown} onMove={onPointerEnter} />
     </group>
   );
 }

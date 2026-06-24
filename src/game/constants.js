@@ -94,9 +94,21 @@ export const initialPriceHistory = () => Object.fromEntries(Object.keys(CROPS).m
 export const WATER_DAYS = 3;
 
 // Storage: harvested crops fill the silo(s). Capacity scales with how many silo
-// buildings you own (upgrade hook for the progression epic).
+// buildings you own plus any bought from the Farm Supply store.
 export const BASE_STORAGE = 40;
 export const SILO_CAPACITY = 60;
+
+// ---- Progression / Farm Supply --------------------------------------------
+export const ROWS_PER_PLOT = 2; // extra farmland rows per plot purchased
+export const UPGRADES = {
+  tractor: { name: 'Tractor', icon: '🚜', max: 3, baseCost: 300, growth: 1.7, desc: 'Hank works faster' },
+  silo: { name: 'Silo', icon: '🏗️', max: 6, baseCost: 220, growth: 1.55, desc: `+${SILO_CAPACITY} storage` },
+  plot: { name: 'Field Plot', icon: '🟫', max: 6, baseCost: 180, growth: 1.5, desc: `+${ROWS_PER_PLOT} rows of farmland` },
+};
+export const upgradeCost = (key, level) => Math.round(UPGRADES[key].baseCost * Math.pow(UPGRADES[key].growth, level));
+export const fieldHeight = (upgrades) => FIELD_SIZE + (upgrades?.plot || 0) * ROWS_PER_PLOT;
+// Faster action/step timing as the tractor levels up.
+export const speedFactor = (upgrades) => 1 + (upgrades?.tractor || 0) * 0.6;
 export const storedTotal = (inventory) =>
   Object.keys(CROPS).reduce((sum, id) => sum + (inventory[id] || 0), 0);
 

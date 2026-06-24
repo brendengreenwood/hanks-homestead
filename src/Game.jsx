@@ -10,14 +10,18 @@ import {
   WATER_DAYS,
   WORLD_SIZE,
   PRICE_HISTORY_LEN,
+  UPGRADES,
   dayOfSeason,
   emptyCell,
+  fieldHeight,
   initialPriceHistory,
   initialPrices,
   makeGrid,
   seasonForDay,
   seasonalPriceFactor,
+  speedFactor,
   storedTotal,
+  upgradeCost,
 } from './game/constants.js';
 import { buildSelectionQueue, findPath, isFarmland, isWalkable, storageCapacity } from './game/logic.js';
 import { useAmbience, useMusic, useSound } from './hooks/useAudio.js';
@@ -28,7 +32,7 @@ import Hud from './ui/Hud.jsx';
 const SAVE_KEY = 'hanks-homestead-save-v1';
 const PERSIST_KEYS = [
   'gold', 'day', 'selectedAction', 'selectedCrop', 'inventory',
-  'farmerPos', 'farmerDir', 'grid', 'buildings', 'prices', 'priceHistory',
+  'farmerPos', 'farmerDir', 'grid', 'buildings', 'prices', 'priceHistory', 'upgrades',
 ];
 
 export default function HanksHomestead() {
@@ -46,6 +50,7 @@ export default function HanksHomestead() {
     inventory: { wheat_seeds: 10, carrot_seeds: 10, tomato_seeds: 10, corn_seeds: 10, pumpkin_seeds: 10 },
     prices: initialPrices(),
     priceHistory: initialPriceHistory(),
+    upgrades: { tractor: 0, silo: 0, plot: 0 },
     farmerPos: { x: FIELD_OFFSET + 4, y: FIELD_OFFSET + 4 },
     farmerDir: 'down',
     isMoving: false,
@@ -72,6 +77,7 @@ export default function HanksHomestead() {
     notificationTimeout: null,
     showShop: false,
     showSellModal: false,
+    showStore: false,
   });
 
   const [version, forceUpdate] = useState(0);
@@ -128,7 +134,7 @@ export default function HanksHomestead() {
     const season = seasonForDay(gs.day);
     const cell = gs.grid[y][x];
 
-    if (!isFarmland(x, y)) {
+    if (!isFarmland(x, y, fieldHeight(gs.upgrades))) {
       sounds.error();
       showNotification("Can't farm here - go to the field!", 'error');
       return;
@@ -181,7 +187,7 @@ export default function HanksHomestead() {
       }
       const cropData = CROPS[cell.crop];
       if (cell.growth >= cropData.growTime) {
-        const space = storageCapacity(gs.buildings) - storedTotal(gs.inventory);
+        const space = storageCapacity(gs.buildings, gs.upgrades.silo) - storedTotal(gs.inventory);
         if (space <= 0) {
           sounds.error();
           showNotification("Silo's full — sell some crops!", 'error');
@@ -276,6 +282,23 @@ export default function HanksHomestead() {
   const ensureMarket = () => {
     if (!gs.prices) gs.prices = initialPrices();
     if (!gs.priceHistory) gs.priceHistory = initialPriceHistory();
+    if (!gs.upgrades) gs.upgrades = { tractor: 0, silo: 0, plot: 0 };
+  };
+
+  const buyUpgrade = (key) => {
+    const lvl = gs.upgrades[key] || 0;
+    if (lvl >= UPGRADES[key].max) return;
+    const cost = upgradeCost(key, lvl);
+    if (gs.gold < cost) {
+      sounds.error();
+      showNotification('Not enough gold!', 'error');
+      return;
+    }
+    gs.gold -= cost;
+    gs.upgrades[key] = lvl + 1;
+    sounds.buyBulk();
+    showNotification(`Bought ${UPGRADES[key].icon} ${UPGRADES[key].name}!`, 'success');
+    requestRender();
   };
 
   const advanceDay = () => {
@@ -392,6 +415,10 @@ export default function HanksHomestead() {
     gs.pendingActionType = null;
     gs.showShop = false;
     gs.showSellModal = false;
+    gs.showStore = false;
+    gs.upgrades = { tractor: 0, silo: 0, plot: 0 };
+    gs.prices = initialPrices();
+    gs.priceHistory = initialPriceHistory();
     try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
     setTimeout(() => showSpeech("Alrighty, fresh start! Let's make this the best darn harvest yet!", 4000), 300);
     requestRender();
@@ -472,7 +499,7 @@ export default function HanksHomestead() {
   const onTilePointerDown = (x, y) => {
     startAudioIfNeeded();
     const season = seasonForDay(gs.day);
-    if ((season === 'spring' || season === 'summer' || season === 'fall') && isFarmland(x, y)) {
+    if ((season === 'spring' || season === 'summer' || season === 'fall') && isFarmland(x, y, fieldHeight(gs.upgrades))) {
       gs.isDragging = true;
       gs.selectionStart = { x, y };
       gs.selectionEnd = { x, y };
@@ -518,7 +545,7 @@ export default function HanksHomestead() {
       return;
     }
 
-    const queue = buildSelectionQueue(gs.selectionStart, gs.selectionEnd);
+    const queue = buildSelectionQueue(gs.selectionStart, gs.selectionEnd, fieldHeight(gs.upgrades));
     gs.selectionStart = null;
     gs.selectionEnd = null;
 
@@ -633,6 +660,7 @@ export default function HanksHomestead() {
   // ============================================
   useEffect(() => {
     if (gs.isPathing && gs.pathQueue.length > 0) {
+      const sf = speedFactor(gs.upgrades);
       const timer = setTimeout(() => {
         const [next, ...rest] = gs.pathQueue;
         const dx = next.x - gs.farmerPos.x;
@@ -646,7 +674,7 @@ export default function HanksHomestead() {
         gs.pathQueue = rest;
         gs.isMoving = true;
         requestRender();
-        setTimeout(() => { gs.isMoving = false; requestRender(); }, 80);
+        setTimeout(() => { gs.isMoving = false; requestRender(); }, 80 / sf);
 
         if (rest.length === 0) {
           gs.isPathing = false;
@@ -656,7 +684,7 @@ export default function HanksHomestead() {
             gs.pendingActionQueue = [];
           }
         }
-      }, 120);
+      }, 120 / sf);
       return () => clearTimeout(timer);
     }
   });
@@ -679,6 +707,7 @@ export default function HanksHomestead() {
         }
       }
 
+      const sf = speedFactor(gs.upgrades);
       const timer = setTimeout(() => {
         const [next, ...rest] = gs.autoActionQueue;
         gs.farmerPos = next;
@@ -707,7 +736,7 @@ export default function HanksHomestead() {
         } else if (actionType === 'harvest') {
           if (cell.crop) {
             const cropData = CROPS[cell.crop];
-            const space = storageCapacity(gs.buildings) - storedTotal(gs.inventory);
+            const space = storageCapacity(gs.buildings, gs.upgrades.silo) - storedTotal(gs.inventory);
             if (cell.growth >= cropData.growTime && space > 0) {
               let harvestAmount = 1;
               if (!cell.harvestPenalty && cell.fed) harvestAmount = 2;
@@ -721,7 +750,7 @@ export default function HanksHomestead() {
         gs.actionTick++;
         gs.autoActionQueue = rest;
         requestRender();
-        setTimeout(() => { gs.isMoving = false; requestRender(); }, 100);
+        setTimeout(() => { gs.isMoving = false; requestRender(); }, 100 / sf);
 
         if (rest.length === 0) {
           gs.isAutoActing = false;
@@ -729,7 +758,7 @@ export default function HanksHomestead() {
           const names = { plant: 'Planting', water: 'Watering', clean: 'Feeding', harvest: 'Harvesting' };
           showNotification(`${names[actionType] || 'Action'} complete!`, 'success');
         }
-      }, 150);
+      }, 150 / sf);
       return () => clearTimeout(timer);
     }
   });
@@ -748,6 +777,8 @@ export default function HanksHomestead() {
     sellItem,
     sellAll,
     toggleShop: () => { gs.showShop = !gs.showShop; requestRender(); },
+    toggleStore: () => { gs.showStore = !gs.showStore; requestRender(); },
+    buyUpgrade,
     openMarket: () => { gs.showSellModal = true; requestRender(); },
     closeSellModal: () => { gs.showSellModal = false; requestRender(); },
   };
