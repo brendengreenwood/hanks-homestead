@@ -462,8 +462,9 @@ function Buildings({ buildings }) {
 // ============================================
 // DECORATIONS (Nature Kit scatter around the farm)
 // ============================================
-function Decorations() {
-  return DECORATIONS.map((d, i) => (
+function Decorations({ count }) {
+  const list = count ? DECORATIONS.slice(0, count) : DECORATIONS;
+  return list.map((d, i) => (
     <group key={i} position={[d.x, 0, d.z]} rotation={[0, d.r || 0, 0]}>
       <ModelOrPlaceholder url={modelUrl(d.model)} scale={d.s || 1} placeholder={null} />
     </group>
@@ -852,7 +853,7 @@ function Farmer({ gs }) {
 // ============================================
 // LIGHTING (tinted per season)
 // ============================================
-function SeasonLighting({ season }) {
+function SeasonLighting({ season, shadowMap = 2048 }) {
   const data = SEASONS[season];
   const dirRef = useRef();
   return (
@@ -865,8 +866,8 @@ function SeasonLighting({ season }) {
         intensity={1.15}
         position={[12, 20, 8]}
         castShadow
-        shadow-mapSize-width={2048}
-        shadow-mapSize-height={2048}
+        shadow-mapSize-width={shadowMap}
+        shadow-mapSize-height={shadowMap}
         shadow-camera-left={-22}
         shadow-camera-right={22}
         shadow-camera-top={22}
@@ -884,12 +885,15 @@ function SeasonLighting({ season }) {
 export default function FarmScene({ gs, version, onTilePointerDown, onTilePointerEnter, onBackgroundMissed }) {
   const season = seasonForDay(gs.day);
   const data = SEASONS[season];
+  // Lighter render budget on touch / low-power devices.
+  const lowSpec =
+    typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
 
   return (
     <Canvas
       shadows
-      dpr={[1, 2]}
-      gl={{ antialias: true }}
+      dpr={[1, lowSpec ? 1.5 : 2]}
+      gl={{ antialias: true, powerPreference: 'high-performance' }}
       onPointerMissed={onBackgroundMissed}
       style={{ position: 'absolute', inset: 0, touchAction: 'none' }}
     >
@@ -908,12 +912,12 @@ export default function FarmScene({ gs, version, onTilePointerDown, onTilePointe
         touches={{ ONE: undefined, TWO: THREE.TOUCH.DOLLY_ROTATE }}
       />
 
-      <SeasonLighting season={season} />
+      <SeasonLighting season={season} shadowMap={lowSpec ? 1024 : 2048} />
 
       {/* version is read so the subtree re-renders when game state mutates */}
       <group userData={{ version }}>
         <Ground grass={data.grass} />
-        <Decorations />
+        <Decorations count={lowSpec ? 12 : undefined} />
         <Field gs={gs} onPointerDown={onTilePointerDown} onPointerEnter={onTilePointerEnter} />
         <Buildings buildings={gs.buildings} />
         <Chickens gs={gs} />

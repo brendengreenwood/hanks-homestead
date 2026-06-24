@@ -130,8 +130,8 @@ positions/sizes were built blind and need real-device iteration.
 - [x] Touch input: tap a tile to act + drag across tiles to multi-select (unified via a single field picking plane), pinch to zoom, two-finger drag to orbit
 - [x] On-screen controls: D-pad (move) + Act button; `move`/`act` wired through `actions`
 - [x] Prevent browser gestures hijacking the canvas (viewport meta, `touch-action:none`, overscroll/zoom locked)
-- [~] Responsive HUD: portrait reflow + safe-area insets done as a first pass — needs tuning on a real screen (overlap risk: d-pad vs action bar on narrow widths)
-- [ ] Performance budget: cap device pixel ratio + smaller shadow maps on mobile, fewer decorations/particles
+- [~] Responsive HUD: portrait reflow + safe-area insets + thumb-cluster controls (centered D-pad with center Act + long-press action/crop menu); needs ongoing real-device polish
+- [x] Performance budget: cap device pixel ratio (1.5) + shadow map (1024) + fewer decorations on touch devices
 - [ ] Device QA pass: real phones, notch safe-areas, d-pad/act ergonomics, one-handed reach
 
 ## 🧰 Tech / Infra
