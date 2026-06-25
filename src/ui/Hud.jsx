@@ -25,16 +25,39 @@ export default function Hud({ gs, actions }) {
 
   return (
     <div className="hud" style={seasonVars}>
-      {/* Title */}
+      {/* Title (desktop) */}
       <div className="hud-title">🌾 Hank's Homestead</div>
 
-      {/* Season (top-left) */}
+      {/* ===== Mobile status bar (top) ===== */}
+      <div className="m-topbar">
+        <div className="m-season">
+          <span className="m-season-ico">{sd.icon}</span>
+          <span className="m-season-txt">
+            <b>{sd.name}</b>
+            <small>Yr {yearForDay(gs.day)} · Day {dayOfSeason(gs.day)}/{SEASON_LENGTH}</small>
+          </span>
+        </div>
+        <div className="m-stats">
+          <span className="m-pill gold">🪙 {gs.gold}</span>
+          <button className="m-pill store" onClick={actions.openMarket}>🎒 {totalHarvested}/{capacity}</button>
+        </div>
+      </div>
+
+      {/* ===== Mobile economy buttons (right edge) ===== */}
+      <div className="m-econ">
+        <button onClick={actions.openMarket}><span className="me-ico">🌾</span><span className="me-lbl">Sell</span></button>
+        <button onClick={actions.toggleShop}><span className="me-ico">🏪</span><span className="me-lbl">Seeds</span></button>
+        <button onClick={actions.toggleStore}><span className="me-ico">🚜</span><span className="me-lbl">Supply</span></button>
+        <button className="me-reset" onClick={actions.resetGame}><span className="me-ico">↺</span><span className="me-lbl">Reset</span></button>
+      </div>
+
+      {/* Season (top-left, desktop) */}
       <div className="season-chip">
         <span className="season-icon">{sd.icon}</span>
         <span className="season-name">{sd.name}</span>
       </div>
 
-      {/* Top-right controls */}
+      {/* Top-right controls (desktop) */}
       <div className="topright">
         <button className="shop-btn" onClick={actions.openMarket}>🌾 Sell</button>
         <button className={`shop-btn ${gs.showShop ? 'active' : ''}`} onClick={actions.toggleShop}>
@@ -44,23 +67,27 @@ export default function Hud({ gs, actions }) {
         <button className="icon-btn" title="Reset game" onClick={actions.resetGame}>↺</button>
       </div>
 
-      {/* Shop panel */}
+      {/* Shop panel (desktop top-right panel; bottom sheet on mobile) */}
       {gs.showShop && (
-        <div className="panel shop-panel">
-          <div className="panel-head">
-            <span>Buy Seeds</span>
-            <span className="gold">🪙 {gs.gold}</span>
-          </div>
-          {cropEntries.map(([id, c]) => (
-            <div className="shop-row" key={id}>
-              <span className="shop-icon">{c.icon}</span>
-              <span className="shop-name">{c.name}</span>
-              <span className="shop-price">{c.seedPrice}g</span>
-              <button disabled={gs.gold < c.seedPrice} onClick={() => actions.buySeeds(id, 1)}>+1</button>
-              <button disabled={gs.gold < c.seedPrice * 5} onClick={() => actions.buySeeds(id, 5)}>+5</button>
+        <>
+          <div className="m-sheet-backdrop" onPointerDown={actions.toggleShop} />
+          <div className="panel shop-panel">
+            <div className="panel-head">
+              <span>Buy Seeds</span>
+              <span className="gold">🪙 {gs.gold}</span>
             </div>
-          ))}
-        </div>
+            {cropEntries.map(([id, c]) => (
+              <div className="shop-row" key={id}>
+                <span className="shop-icon">{c.icon}</span>
+                <span className="shop-name">{c.name}</span>
+                <span className="shop-price">{c.seedPrice}g</span>
+                <button disabled={gs.gold < c.seedPrice} onClick={() => actions.buySeeds(id, 1)}>+1</button>
+                <button disabled={gs.gold < c.seedPrice * 5} onClick={() => actions.buySeeds(id, 5)}>+5</button>
+              </div>
+            ))}
+            <button className="sheet-close" onClick={actions.toggleShop}>Done</button>
+          </div>
+        </>
       )}
 
       {/* Inventory (left-center) */}

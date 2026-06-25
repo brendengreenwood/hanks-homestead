@@ -775,37 +775,127 @@
 .tc-seed.out { background: var(--barn); }
 .tc-done { margin-top: 10px; width: 100%; height: 36px; border-radius: 10px; }
 
-/* Show the on-screen controls + reflow the HUD for touch / portrait. */
+/* ===== Mobile-native chrome (hidden on desktop, shown on coarse) ===== */
+.m-topbar, .m-econ, .m-sheet-backdrop, .sheet-close { display: none; }
+
+.m-topbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: calc(env(safe-area-inset-top) + 8px) 12px 8px;
+  background: linear-gradient(180deg, rgba(46, 28, 12, 0.94), rgba(46, 28, 12, 0.78));
+  border-bottom: 2px solid var(--wood-dark);
+  pointer-events: auto;
+  z-index: 12;
+}
+.m-season { display: flex; align-items: center; gap: 8px; }
+.m-season-ico { font-size: 22px; }
+.m-season-txt { display: flex; flex-direction: column; line-height: 1.05; color: #f7ecd2; }
+.m-season-txt b { font-family: var(--font-display); font-size: 14px; }
+.m-season-txt small { font-size: 10px; opacity: 0.82; }
+.m-stats { display: flex; align-items: center; gap: 6px; }
+.m-pill {
+  background: linear-gradient(180deg, var(--parch), var(--parch-2));
+  border: 2px solid var(--wood-dark);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-weight: 800;
+  font-size: 13px;
+  color: var(--ink);
+}
+.m-pill.gold { color: #9a6a16; }
+
+.m-econ {
+  position: absolute;
+  right: calc(8px + env(safe-area-inset-right));
+  top: 46%;
+  transform: translateY(-50%);
+  flex-direction: column;
+  gap: 9px;
+  z-index: 11;
+}
+.m-econ button {
+  width: 54px;
+  height: 54px;
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  background: linear-gradient(180deg, var(--parch), var(--parch-2));
+  border: 2px solid var(--wood-dark);
+  color: var(--ink);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.5), 0 3px 0 var(--wood-dark), 0 5px 8px rgba(0, 0, 0, 0.3);
+}
+.m-econ button:active { transform: translateY(2px); box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.3); }
+.me-ico { font-size: 21px; line-height: 1; }
+.me-lbl { font-size: 9px; font-weight: 700; }
+.m-econ .me-reset { opacity: 0.7; }
+
+.m-sheet-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); pointer-events: auto; z-index: 30; }
+.sheet-close {
+  width: 100%;
+  margin-top: 12px;
+  height: 46px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #b27f4d, #8a5930);
+  border: 2px solid var(--wood-dark);
+  color: #fff8ec;
+  font-weight: 800;
+  font-size: 15px;
+}
+
+/* ===== Reconfigure the HUD for touch / phone ===== */
 @media (pointer: coarse) {
   .touch-controls { display: block; }
-  .hud-title { display: none; }
-  /* the long-press menu replaces the always-on action bar + crop selector */
-  .action-bar,
-  .child-panel { display: none; }
-  .season-chip {
-    top: calc(10px + env(safe-area-inset-top));
-    left: calc(10px + env(safe-area-inset-left));
-  }
-  .topright {
-    top: calc(10px + env(safe-area-inset-top));
-    right: calc(10px + env(safe-area-inset-right));
-  }
-  /* gold/day move up under the season sign */
-  .botleft {
-    bottom: auto;
-    top: calc(54px + env(safe-area-inset-top));
-    left: calc(12px + env(safe-area-inset-left));
-  }
-  .inventory {
-    transform: translateY(-50%) scale(0.82);
-    transform-origin: left center;
-  }
+  .m-topbar { display: flex; }
+  .m-econ { display: flex; }
+  .m-sheet-backdrop { display: block; }
+  .sheet-close { display: block; }
+  /* retire the legacy desktop chrome on mobile */
+  .hud-title, .season-chip, .topright, .botleft, .inventory, .action-bar, .child-panel { display: none; }
+
   .next-turn {
-    width: 76px;
-    height: 76px;
-    right: calc(14px + env(safe-area-inset-right));
-    bottom: calc(14px + env(safe-area-inset-bottom));
+    width: 74px;
+    height: 74px;
+    right: calc(12px + env(safe-area-inset-right));
+    bottom: calc(12px + env(safe-area-inset-bottom));
   }
+  .notification { top: calc(env(safe-area-inset-top) + 58px); }
+
+  /* economy panels become bottom sheets */
+  .modal-backdrop { align-items: flex-end; }
+  .modal {
+    width: 100%;
+    max-width: 100%;
+    max-height: 84vh;
+    border-radius: 18px 18px 0 0;
+    border-width: 3px 0 0 0;
+    padding: 16px 14px calc(16px + env(safe-area-inset-bottom));
+  }
+  .modal-row { grid-template-columns: 26px 1fr 40px 74px 52px; padding: 10px; }
+  .shop-panel {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: auto;
+    width: 100%;
+    border-radius: 18px 18px 0 0;
+    border-width: 3px 0 0 0;
+    padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+    max-height: 84vh;
+    overflow-y: auto;
+    z-index: 31;
+  }
+  .shop-row { padding: 9px 4px; font-size: 14px; }
+  .shop-row button { width: 40px; height: 32px; font-size: 13px; }
+  .store-row { padding: 11px 12px; }
 }
 
 /* world-space building labels (drei Html) */
