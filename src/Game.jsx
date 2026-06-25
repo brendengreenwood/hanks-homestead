@@ -86,6 +86,8 @@ export default function HanksHomestead() {
     showShop: false,
     showSellModal: false,
     showStore: false,
+    camAz: Math.PI / 4, // camera azimuth (mobile: snapped to fixed angles)
+    camTop: false, // top-down view toggle
   });
 
   const [version, forceUpdate] = useState(0);
@@ -879,6 +881,8 @@ export default function HanksHomestead() {
     buyUpgrade,
     acceptContract,
     toggleSprinkler: () => { gs.sprinklerOn = !gs.sprinklerOn; requestRender(); },
+    rotateCam: (dir) => { gs.camAz = (gs.camAz ?? Math.PI / 4) + dir * (Math.PI / 2); requestRender(); },
+    toggleTopView: () => { gs.camTop = !gs.camTop; requestRender(); },
     openMarket: () => { gs.showSellModal = true; requestRender(); },
     closeSellModal: () => { gs.showSellModal = false; requestRender(); },
   };

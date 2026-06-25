@@ -1,5 +1,5 @@
 import React, { Suspense, useEffect, useMemo, useRef } from 'react';
-import { Canvas, useFrame, createPortal } from '@react-three/fiber';
+import { Canvas, useFrame, createPortal, useThree } from '@react-three/fiber';
 import { OrbitControls, OrthographicCamera, useGLTF, useAnimations, Html } from '@react-three/drei';
 import * as THREE from 'three';
 
@@ -883,6 +883,30 @@ function SeasonLighting({ season, shadowMap = 2048 }) {
 }
 
 // ============================================
+// CAMERA RIG — on touch, hold a fixed isometric angle and ease toward the
+// discrete azimuth (gs.camAz) / top-down (gs.camTop) the UI buttons request.
+// ============================================
+const ISO_POLAR = 0.93; // ~iso elevation
+const TOP_POLAR = 0.16; // near top-down
+function CameraRig({ gs }) {
+  const controls = useThree((s) => s.controls);
+  useFrame((_, dt) => {
+    if (!controls) return;
+    const targetAz = gs.camAz ?? Math.PI / 4;
+    const targetPol = gs.camTop ? TOP_POLAR : ISO_POLAR;
+    const k = 1 - Math.exp(-7 * dt);
+    const az = controls.getAzimuthalAngle();
+    let d = targetAz - az;
+    d = Math.atan2(Math.sin(d), Math.cos(d)); // shortest path
+    controls.setAzimuthalAngle(az + d * k);
+    const pol = controls.getPolarAngle();
+    controls.setPolarAngle(pol + (targetPol - pol) * k);
+    controls.update();
+  });
+  return null;
+}
+
+// ============================================
 // SCENE ROOT
 // ============================================
 export default function FarmScene({ gs, version, onTilePointerDown, onTilePointerEnter, onBackgroundMissed }) {
@@ -908,12 +932,14 @@ export default function FarmScene({ gs, version, onTilePointerDown, onTilePointe
         makeDefault
         target={[0, 0, 0]}
         enablePan={false}
+        enableRotate={!lowSpec}
         minZoom={12}
         maxZoom={70}
         maxPolarAngle={Math.PI / 2.3}
         mouseButtons={{ LEFT: null, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE }}
-        touches={{ ONE: undefined, TWO: THREE.TOUCH.DOLLY_ROTATE }}
+        touches={{ ONE: undefined, TWO: THREE.TOUCH.DOLLY_PAN }}
       />
+      {lowSpec && <CameraRig gs={gs} />}
 
       <SeasonLighting season={season} shadowMap={lowSpec ? 1024 : 2048} />
 

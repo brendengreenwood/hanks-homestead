@@ -51,6 +51,15 @@ export default function Hud({ gs, actions }) {
         <button className="me-reset" onClick={actions.resetGame}><span className="me-ico">↺</span><span className="me-lbl">Reset</span></button>
       </div>
 
+      {/* ===== Mobile camera controls (left edge) ===== */}
+      <div className="m-cam">
+        <button onClick={() => actions.rotateCam(-1)} aria-label="Rotate left">⟲</button>
+        <button className={gs.camTop ? 'active' : ''} onClick={actions.toggleTopView} aria-label="Toggle top view">
+          {gs.camTop ? 'Iso' : 'Top'}
+        </button>
+        <button onClick={() => actions.rotateCam(1)} aria-label="Rotate right">⟳</button>
+      </div>
+
       {/* Season (top-left, desktop) */}
       <div className="season-chip">
         <span className="season-icon">{sd.icon}</span>
