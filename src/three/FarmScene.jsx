@@ -7,6 +7,11 @@ import { CROPS, BUILDINGS, SEASONS, COLORS, WORLD_SIZE, FIELD_OFFSET, FIELD_SIZE
 import { isFarmland } from '../game/logic.js';
 import { modelUrl, cropModelUrl, CROP_TRANSFORM, DECORATIONS, FARMER } from '../game/assets.js';
 
+// Coarse pointer (phone/tablet): the HUD covers the edges, so world-anchored
+// building labels are redundant and collide with the touch controls.
+const IS_COARSE =
+  typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+
 // ============================================
 // GRID <-> WORLD COORDINATES
 // Each grid cell is a 1x1 tile. We re-center the world on the origin so the
@@ -454,9 +459,11 @@ function Buildings({ buildings }) {
     return (
       <group key={i} position={[cx, 0, cz]}>
         {b.type === 'barn' ? <Barn /> : b.type === 'house' ? <House /> : <Silo />}
-        <Html position={[0, 1.95, 0]} center zIndexRange={[8, 0]} style={{ pointerEvents: 'none' }}>
-          <div className="world-label">{data.name}</div>
-        </Html>
+        {!IS_COARSE && (
+          <Html position={[0, 1.95, 0]} center zIndexRange={[8, 0]} style={{ pointerEvents: 'none' }}>
+            <div className="world-label">{data.name}</div>
+          </Html>
+        )}
       </group>
     );
   });
