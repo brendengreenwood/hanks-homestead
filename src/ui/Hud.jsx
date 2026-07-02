@@ -1,5 +1,5 @@
 import React from 'react';
-import { CROPS, FEED_COST, FIELD_OFFSET, FIELD_SIZE, SEASONS, SEASON_ACTIONS, WATER_DAYS, fieldHeight, seasonForDay, yearForDay, dayOfSeason, SEASON_LENGTH, storedTotal, UPGRADES, upgradeCost } from '../game/constants.js';
+import { CROPS, FEED_COST, FIELD_OFFSET, FIELD_SIZE, SEASONS, SEASON_ACTIONS, WATER_DAYS, elevatorIntake, fieldHeight, seasonForDay, yearForDay, dayOfSeason, SEASON_LENGTH, storedTotal, UPGRADES, upgradeCost } from '../game/constants.js';
 import { storageCapacity } from '../game/logic.js';
 import './hud.css';
 
@@ -383,6 +383,7 @@ function Almanac({ gs, actions }) {
             <>
               <div className="alm-row"><span className="alm-ico">📈</span><div>Prices <b>peak in spring</b> (lean season) and <b>bottom out in fall</b> (harvest glut). The sparklines in the Sell window show the trend.</div></div>
               <div className="alm-row"><span className="alm-ico">⚖️</span><div>Dumping a big pile walks the price down as you sell. <b>Spread sales across days</b> and the market recovers between.</div></div>
+              <div className="alm-row"><span className="alm-ico">🚛</span><div>The elevator only takes so many <b>bushels per day</b> — a big harvest must be divvied out over the cycle. Haulers raise the daily intake.</div></div>
               <div className="alm-row"><span className="alm-ico">🎒</span><div>Storage is limited — silos add room. Perishables rot a little every day; grain keeps.</div></div>
               <div className="alm-row"><span className="alm-ico">📜</span><div><b>Contracts</b> lock a price now for delivery later — a hedge for crops that won't keep. Miss delivery and pay a 25% penalty.</div></div>
             </>
@@ -558,13 +559,22 @@ function SellModal({ gs, actions }) {
   const all = Object.entries(CROPS).map(([id, c]) => ({ id, c, count: gs.inventory[id] || 0, price: priceOf(id) }));
   const totalValue = all.reduce((s, x) => s + x.count * x.price, 0);
   const totalItems = all.reduce((s, x) => s + x.count, 0);
+  const intake = elevatorIntake(gs.upgrades);
+  const sold = gs.soldToday || 0;
+  const room = Math.max(0, intake - sold);
 
   const winter = seasonForDay(gs.day) === 'winter';
   return (
     <div className="modal-backdrop">
       <div className="modal">
         <h2>{winter ? '❄️ Winter Market ❄️' : '🌾 Grain Elevator'}</h2>
-        <p className="modal-sub">{winter ? 'Sell your harvest before spring!' : 'Prices rise toward harvest, dip at the glut — time it well.'}</p>
+        <p className="modal-sub">{winter ? 'Prices climb toward spring — divvy it out.' : 'Prices rise toward harvest, dip at the glut — time it well.'}</p>
+
+        <div className={`intake-meter ${room === 0 ? 'full' : ''}`}>
+          <span>🚛 Elevator intake today</span>
+          <span className="im-bar"><i style={{ width: `${Math.min(100, (sold / intake) * 100)}%` }} /></span>
+          <b>{sold}/{intake} bu</b>
+        </div>
 
         <div className="modal-rows">
           {all.map(({ id, c, count, price }) => {
@@ -573,13 +583,9 @@ function SellModal({ gs, actions }) {
             const trend = price > prev ? '▲' : price < prev ? '▼' : '·';
             const trendCls = price > prev ? 'up' : price < prev ? 'down' : '';
             const vsMean = Math.round(((price - c.sellPrice) / c.sellPrice) * 100);
+            const dead = count === 0 || room === 0;
             return (
-              <button
-                key={id}
-                className={`modal-row ${count > 0 ? '' : 'empty'}`}
-                disabled={count === 0}
-                onClick={() => actions.sellItem(id, true)}
-              >
+              <div key={id} className={`modal-row ${count > 0 ? '' : 'empty'}`}>
                 <span className="mr-icon">{c.icon}</span>
                 <span className="mr-name">
                   {c.name}
@@ -591,15 +597,18 @@ function SellModal({ gs, actions }) {
                   {price}g {trend}
                   <small className={vsMean >= 0 ? 'up' : 'down'}>{vsMean >= 0 ? '+' : ''}{vsMean}%</small>
                 </span>
-                <span className="mr-total">{count * price}g</span>
-              </button>
+                <span className="mr-sell">
+                  <button disabled={dead} onClick={() => actions.sellItem(id, 1)}>1</button>
+                  <button disabled={dead || count < 2} onClick={() => actions.sellItem(id, 5)}>5</button>
+                  <button disabled={dead} onClick={() => actions.sellItem(id, Infinity)}>Max</button>
+                </span>
+              </div>
             );
           })}
         </div>
 
         <div className="modal-total">
-          <span>{totalItems} items to sell</span>
-          <span className="gold">Total: {totalValue}g</span>
+          <span>{totalItems} bu stored (worth {totalValue}g at spot)</span>
         </div>
 
         <div className="contracts">
@@ -624,8 +633,8 @@ function SellModal({ gs, actions }) {
         </div>
 
         <div className="modal-actions">
-          <button className="sell-all" disabled={totalItems === 0} onClick={actions.sellAll}>
-            💰 Sell All ({totalValue}g)
+          <button className="sell-all" disabled={totalItems === 0 || room === 0} onClick={actions.sellAll}>
+            💰 Sell Max ({Math.min(room, totalItems)} bu)
           </button>
           <button className="continue" onClick={actions.closeSellModal}>
             {winter ? 'Continue →' : 'Done'}

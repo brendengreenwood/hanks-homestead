@@ -27,6 +27,7 @@ import {
   speedFactor,
   storedTotal,
   upgradeCost,
+  elevatorIntake,
 } from './game/constants.js';
 import { buildSelectionQueue, findPath, isFarmland, isWalkable, storageCapacity } from './game/logic.js';
 import { useAmbience, useMusic, useSound } from './hooks/useAudio.js';
@@ -38,7 +39,7 @@ const SAVE_KEY = 'hanks-homestead-save-v1';
 const PERSIST_KEYS = [
   'gold', 'day', 'selectedAction', 'selectedCrop', 'inventory',
   'farmerPos', 'farmerDir', 'grid', 'buildings', 'prices', 'priceHistory', 'upgrades', 'sprinklerOn',
-  'contracts', 'contractOffers', 'contractSeq',
+  'contracts', 'contractOffers', 'contractSeq', 'soldToday',
 ];
 
 export default function HanksHomestead() {
@@ -56,7 +57,7 @@ export default function HanksHomestead() {
     inventory: { wheat_seeds: 10, carrot_seeds: 10, tomato_seeds: 10, corn_seeds: 10, pumpkin_seeds: 10 },
     prices: initialPrices(),
     priceHistory: initialPriceHistory(),
-    upgrades: { tractor: 0, sprinkler: 0, silo: 0, plot: 0 },
+    upgrades: { tractor: 0, sprinkler: 0, silo: 0, plot: 0, hauler: 0 },
     sprinklerOn: false,
     contracts: [],
     contractOffers: [],
@@ -327,6 +328,8 @@ export default function HanksHomestead() {
     if (!gs.priceHistory) gs.priceHistory = initialPriceHistory();
     if (!gs.upgrades) gs.upgrades = { tractor: 0, sprinkler: 0, silo: 0, plot: 0 };
     if (gs.upgrades.sprinkler === undefined) gs.upgrades.sprinkler = 0;
+    if (gs.upgrades.hauler === undefined) gs.upgrades.hauler = 0;
+    if (gs.soldToday === undefined) gs.soldToday = 0;
     if (gs.sprinklerOn === undefined) gs.sprinklerOn = false;
   };
 
@@ -430,6 +433,7 @@ export default function HanksHomestead() {
   const advanceDay = () => {
     const currentSeason = seasonForDay(gs.day);
     gs.day++;
+    gs.soldToday = 0; // the elevator takes a fresh batch each day
     const nextSeason = seasonForDay(gs.day);
 
     const scorcher = nextSeason === 'summer' && Math.random() < SCORCH_CHANCE;
@@ -490,33 +494,59 @@ export default function HanksHomestead() {
     requestRender();
   };
 
-  const sellItem = (item, all = false) => {
+  // The elevator only takes so many bushels a day (elevatorIntake), so big
+  // stockpiles must be divvied out across the price cycle. Contracts deliver
+  // OUTSIDE this cap — part of what you're paying the premium for.
+  const elevatorRoom = () => elevatorIntake(gs.upgrades) - (gs.soldToday || 0);
+
+  const sellItem = (item, qty = 1) => {
     const count = gs.inventory[item] || 0;
     if (count <= 0) return;
-    const qty = all ? count : 1;
-    const earned = sellRevenue(item, qty);
+    const room = elevatorRoom();
+    if (room <= 0) {
+      sounds.error();
+      showNotification(`Elevator's full for today (${elevatorIntake(gs.upgrades)} bu/day) — try tomorrow!`, 'error');
+      return;
+    }
+    const n = Math.min(qty, count, room);
+    const earned = sellRevenue(item, n);
     gs.gold += earned;
-    gs.inventory[item] -= qty;
+    gs.inventory[item] -= n;
+    gs.soldToday = (gs.soldToday || 0) + n;
     sounds.sell();
-    showNotification(`Sold ${qty} ${CROPS[item].icon} for ${earned}g!`, 'success');
+    showNotification(`Sold ${n} ${CROPS[item].icon} for ${earned}g!`, 'success');
     requestRender();
   };
 
+  // Fill today's remaining intake, highest-priced crops first.
   const sellAll = () => {
+    let room = elevatorRoom();
+    if (room <= 0) {
+      sounds.error();
+      showNotification(`Elevator's full for today (${elevatorIntake(gs.upgrades)} bu/day) — try tomorrow!`, 'error');
+      return;
+    }
     let sold = 0;
     let earned = 0;
-    for (const item of Object.keys(CROPS)) {
+    const byPrice = Object.keys(CROPS).sort(
+      (a, b) => (gs.prices[b] ?? CROPS[b].sellPrice) - (gs.prices[a] ?? CROPS[a].sellPrice)
+    );
+    for (const item of byPrice) {
+      if (room <= 0) break;
       const count = gs.inventory[item] || 0;
       if (count <= 0) continue;
-      const revenue = sellRevenue(item, count);
+      const n = Math.min(count, room);
+      const revenue = sellRevenue(item, n);
       earned += revenue;
       gs.gold += revenue;
-      gs.inventory[item] = 0;
-      sold += count;
+      gs.inventory[item] -= n;
+      room -= n;
+      sold += n;
     }
     if (sold > 0) {
+      gs.soldToday = (gs.soldToday || 0) + sold;
       sounds.sell();
-      showNotification(`Sold ${sold} crops for ${earned}g!`, 'success');
+      showNotification(`Sold ${sold} bushels for ${earned}g!`, 'success');
     }
     requestRender();
   };
@@ -553,8 +583,9 @@ export default function HanksHomestead() {
     gs.showShop = false;
     gs.showSellModal = false;
     gs.showStore = false;
-    gs.upgrades = { tractor: 0, sprinkler: 0, silo: 0, plot: 0 };
+    gs.upgrades = { tractor: 0, sprinkler: 0, silo: 0, plot: 0, hauler: 0 };
     gs.sprinklerOn = false;
+    gs.soldToday = 0;
     gs.contracts = [];
     gs.contractOffers = [];
     gs.contractSeq = 1;

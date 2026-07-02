@@ -114,6 +114,14 @@ export const WATER_DAYS = 3;
 export const BASE_STORAGE = 40;
 export const SILO_CAPACITY = 60;
 
+// ---- Grain elevator intake --------------------------------------------------
+// The elevator only takes so many bushels per day, so a big harvest must be
+// divvied out across the price cycle (contracts deliver OUTSIDE the cap —
+// that's part of their value).
+export const ELEVATOR_BASE_INTAKE = 25;
+export const ELEVATOR_INTAKE_PER_LEVEL = 15;
+export const elevatorIntake = (upgrades) => ELEVATOR_BASE_INTAKE + (upgrades?.hauler || 0) * ELEVATOR_INTAKE_PER_LEVEL;
+
 // ---- Progression / Farm Supply --------------------------------------------
 export const ROWS_PER_PLOT = 2; // extra farmland rows per plot purchased
 export const UPGRADES = {
@@ -121,6 +129,7 @@ export const UPGRADES = {
   sprinkler: { name: 'Sprinklers', icon: '💧', max: 1, baseCost: 500, growth: 2, desc: 'Auto-waters thirsty crops — scorcher insurance (small daily cost)' },
   silo: { name: 'Silo', icon: '🏗️', max: 6, baseCost: 220, growth: 1.55, desc: `+${SILO_CAPACITY} storage` },
   plot: { name: 'Field Plot', icon: '🟫', max: 6, baseCost: 180, growth: 1.5, desc: `+${ROWS_PER_PLOT} rows of farmland` },
+  hauler: { name: 'Grain Hauler', icon: '🚛', max: 4, baseCost: 260, growth: 1.6, desc: `Sell +${ELEVATOR_INTAKE_PER_LEVEL} bushels/day at the elevator` },
 };
 // Operating cost: gold per crop the sprinklers water each summer day. Automation
 // saves the manual watering, but the running cost eats your margin — your call.

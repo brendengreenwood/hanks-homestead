@@ -518,7 +518,7 @@
 .modal-rows { display: flex; flex-direction: column; gap: 7px; }
 .modal-row {
   display: grid;
-  grid-template-columns: 26px 1fr 42px 82px 56px;
+  grid-template-columns: 26px 1fr 30px 70px 116px;
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
@@ -533,6 +533,46 @@
 .modal-row:not(.empty):hover { filter: brightness(1.04); }
 .modal-row.empty { opacity: 0.45; cursor: default; }
 .mr-icon { font-size: 21px; }
+.intake-meter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 10px;
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+  background: rgba(95, 138, 55, 0.12);
+  border: 2px dashed rgba(63, 94, 35, 0.45);
+  border-radius: 9px;
+}
+.intake-meter.full { background: rgba(176, 64, 44, 0.12); border-color: rgba(176, 64, 44, 0.5); }
+.im-bar {
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(67, 41, 15, 0.25);
+  overflow: hidden;
+}
+.im-bar i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--season, #5f8a37), var(--season-deep, #3f5e23));
+}
+.intake-meter.full .im-bar i { background: var(--barn, #b0402c); }
+.mr-sell { display: flex; gap: 4px; justify-content: flex-end; }
+.mr-sell button {
+  min-width: 30px;
+  height: 28px;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 800;
+  border-radius: 8px;
+  color: #fff8ec;
+  background: linear-gradient(180deg, #b27f4d 0%, #8a5930 100%);
+  border: 2px solid var(--wood-dark);
+}
+.mr-sell button:disabled { opacity: 0.45; }
 .mr-name { font-weight: 700; display: flex; flex-direction: column; gap: 1px; }
 .mr-shelf { font-size: 9px; font-weight: 600; color: var(--ink-soft); }
 .sparkline { display: block; opacity: 0.85; }
@@ -1117,7 +1157,8 @@
     border-width: 3px 0 0 0;
     padding: 16px 14px calc(16px + env(safe-area-inset-bottom));
   }
-  .modal-row { grid-template-columns: 26px 1fr 40px 74px 52px; padding: 10px; }
+  .modal-row { grid-template-columns: 24px 1fr 26px 62px 118px; padding: 10px 8px; }
+  .mr-sell button { min-width: 34px; height: 34px; }
   .shop-panel {
     position: fixed;
     left: 0;
