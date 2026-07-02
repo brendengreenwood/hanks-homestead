@@ -54,7 +54,7 @@ export default function HanksHomestead() {
     day: 1,
     selectedAction: 'plant',
     selectedCrop: 'wheat',
-    inventory: { wheat_seeds: 10, carrot_seeds: 10, tomato_seeds: 10, corn_seeds: 10, pumpkin_seeds: 10 },
+    inventory: { wheat_seeds: 10, carrot_seeds: 10, tomato_seeds: 10, corn_seeds: 10, pumpkin_seeds: 10, plant_food: 5 },
     prices: initialPrices(),
     priceHistory: initialPriceHistory(),
     upgrades: { tractor: 0, sprinkler: 0, silo: 0, plot: 0, hauler: 0 },
@@ -206,15 +206,15 @@ export default function HanksHomestead() {
       }
       if (cell.fed) {
         showNotification('Already fed!', 'info');
-      } else if (gs.gold < FEED_COST) {
+      } else if ((gs.inventory.plant_food || 0) <= 0) {
         sounds.error();
-        showNotification(`Plant food costs ${FEED_COST}g — not enough gold!`, 'error');
+        showNotification('Out of plant food — grab more at the store!', 'error');
       } else {
-        gs.gold -= FEED_COST;
+        gs.inventory.plant_food--;
         gs.grid[y][x].fed = true;
         sounds.water(tileAt(gs.farmerPos));
         gs.actionTick++;
-        showNotification(`Applied plant food! (−${FEED_COST}g)`, 'success');
+        showNotification(`Applied plant food! (${gs.inventory.plant_food} left)`, 'success');
       }
     } else if (gs.selectedAction === 'harvest' && cell.crop) {
       if (season !== 'fall') {
@@ -557,6 +557,17 @@ export default function HanksHomestead() {
     requestRender();
   };
 
+  const buyFeed = (amount) => {
+    const cost = FEED_COST * amount;
+    if (gs.gold >= cost) {
+      gs.gold -= cost;
+      gs.inventory.plant_food = (gs.inventory.plant_food || 0) + amount;
+      if (amount > 1) sounds.buyBulk();
+      else sounds.buy();
+      requestRender();
+    }
+  };
+
   const buySeeds = (cropId, amount) => {
     const cost = CROPS[cropId].seedPrice * amount;
     if (gs.gold >= cost) {
@@ -574,7 +585,7 @@ export default function HanksHomestead() {
     gs.day = 1;
     gs.selectedAction = 'plant';
     gs.selectedCrop = 'wheat';
-    gs.inventory = { wheat_seeds: 10, carrot_seeds: 10, tomato_seeds: 10, corn_seeds: 10, pumpkin_seeds: 10 };
+    gs.inventory = { wheat_seeds: 10, carrot_seeds: 10, tomato_seeds: 10, corn_seeds: 10, pumpkin_seeds: 10, plant_food: 5 };
     gs.farmerPos = { x: FIELD_OFFSET + 4, y: FIELD_OFFSET + 4 };
     gs.farmerDir = 'down';
     gs.grid = makeGrid();
@@ -914,9 +925,9 @@ export default function HanksHomestead() {
           return;
         }
       }
-      if (actionType === 'clean' && gs.gold < FEED_COST) {
+      if (actionType === 'clean' && (gs.inventory.plant_food || 0) <= 0) {
         sounds.error();
-        showNotification(`Out of gold for plant food (${FEED_COST}g each)!`, 'error');
+        showNotification('Out of plant food — grab more at the store!', 'error');
         finishActiveJob();
         requestRender();
         return;
@@ -944,8 +955,8 @@ export default function HanksHomestead() {
             sounds.water(tileAt(next));
           }
         } else if (actionType === 'clean') {
-          if (cell.crop && !cell.fed && gs.gold >= FEED_COST) {
-            gs.gold -= FEED_COST;
+          if (cell.crop && !cell.fed && (gs.inventory.plant_food || 0) > 0) {
+            gs.inventory.plant_food--;
             gs.grid[next.y][next.x].fed = true;
             sounds.water(tileAt(next));
           }
@@ -990,6 +1001,7 @@ export default function HanksHomestead() {
     advanceDay,
     resetGame,
     buySeeds,
+    buyFeed,
     sellItem,
     sellAll,
     toggleShop: () => { gs.showShop = !gs.showShop; requestRender(); },

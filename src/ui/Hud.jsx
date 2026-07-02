@@ -107,6 +107,16 @@ export default function Hud({ gs, actions }) {
                 <button disabled={gs.gold < c.seedPrice * 5} onClick={() => actions.buySeeds(id, 5)}>+5</button>
               </div>
             ))}
+            <div className="shop-row supplies">
+              <span className="shop-icon">🧪</span>
+              <span className="shop-name">
+                Plant Food
+                <small className="shop-stats">doubles a tile's harvest · you have ×{gs.inventory.plant_food || 0}</small>
+              </span>
+              <span className="shop-price">{FEED_COST}g</span>
+              <button disabled={gs.gold < FEED_COST} onClick={() => actions.buyFeed(1)}>+1</button>
+              <button disabled={gs.gold < FEED_COST * 5} onClick={() => actions.buyFeed(5)}>+5</button>
+            </div>
             <button className="sheet-close" onClick={actions.toggleShop}>Done</button>
           </div>
         </>
@@ -190,7 +200,7 @@ export default function Hud({ gs, actions }) {
             <span className="keybind">{i + 1}</span>
             <span className="action-icon">{a.icon}</span>
             <span className="action-name">{a.name}</span>
-            {a.id === 'clean' && <span className="action-cost">−{FEED_COST}g</span>}
+            {a.id === 'clean' && <span className="action-cost">×{gs.inventory.plant_food || 0}</span>}
           </button>
         ))}
       </div>
@@ -347,7 +357,7 @@ function Almanac({ gs, actions }) {
           {t === 'calendar' && (
             <>
               <div className="alm-row"><span className="alm-ico">🌸</span><div><b>Spring — plant.</b> Rain waters the field for free. Anything not planted by summer waits a whole year.</div></div>
-              <div className="alm-row"><span className="alm-ico">☀️</span><div><b>Summer — water & feed.</b> Soil dries every day; crops only grow on moist soil. Feed (−{FEED_COST}g) doubles a crop's harvest.</div></div>
+              <div className="alm-row"><span className="alm-ico">☀️</span><div><b>Summer — water & feed.</b> Soil dries every day; crops only grow on moist soil. A jar of plant food doubles a crop's harvest.</div></div>
               <div className="alm-row"><span className="alm-ico">🍂</span><div><b>Fall — harvest.</b> Ripe crops go into storage. Unharvested crops are lost when spring returns!</div></div>
               <div className="alm-row"><span className="alm-ico">❄️</span><div><b>Winter — sell (or hold).</b> The elevator buys year-round — winter is planning time, and prices climb toward spring.</div></div>
               <div className="alm-row"><span className="alm-ico">🎯</span><div>Drag across tiles to queue work for Hank — queue several jobs and he'll run them in order.</div></div>
@@ -358,13 +368,13 @@ function Almanac({ gs, actions }) {
               <div className="alm-row"><span className="alm-ico">💧</span><div>One watering keeps soil moist for <b>{WATER_DAYS} days</b>. The dirt shows it:
                 <span className="soil-key"><i style={{ background: '#5C4033' }} /> wet <i style={{ background: '#77512E' }} /> drying <i style={{ background: '#8B5A2B' }} /> parched</span></div></div>
               <div className="alm-row"><span className="alm-ico">🔥</span><div><b>Scorchers</b> (about 1 day in 3) dry soil twice as fast. The light goes harsh and amber — water that day.</div></div>
-              <div className="alm-row"><span className="alm-ico">🥀</span><div>A crop on parched soil <b>withers</b> — it droops and shrinks. It still harvests, but the feed bonus — and the {FEED_COST}g you paid — is gone. Ready crops stand tall and <b>sparkle</b>.</div></div>
+              <div className="alm-row"><span className="alm-ico">🥀</span><div>A crop on parched soil <b>withers</b> — it droops and shrinks. It still harvests, but the feed bonus — and the jar you spent — is gone. Ready crops stand tall and <b>sparkle</b>.</div></div>
               <div className="alm-row"><span className="alm-ico">💦</span><div><b>Sprinklers</b> water every thirsty tile each morning (1g/tile) — scorcher-proof, hands-free.</div></div>
             </>
           )}
           {t === 'crops' && (
             <>
-              <div className="alm-note">🧪 Feed costs {FEED_COST}g a tile and doubles that harvest — unless the crop withers.</div>
+              <div className="alm-note">🧪 Plant food ({FEED_COST}g a jar at the seed store) doubles a tile's harvest — unless the crop withers.</div>
               {Object.entries(CROPS).map(([id, c]) => (
                 <div className="alm-crop" key={id}>
                   <span className="alm-ico">{c.icon}</span>
@@ -445,7 +455,7 @@ function TouchControls({ gs, actions, actionList, curAction, cropEntries }) {
               >
                 <span className="tc-ico">{a.icon}</span>
                 <span className="tc-name">{a.name}</span>
-                {a.id === 'clean' && <span className="tc-cost">−{FEED_COST}g</span>}
+                {a.id === 'clean' && <span className="tc-cost">×{gs.inventory.plant_food || 0}</span>}
               </button>
             ))}
           </div>
