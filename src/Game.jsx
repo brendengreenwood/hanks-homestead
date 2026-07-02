@@ -145,6 +145,12 @@ export default function HanksHomestead() {
   // Grid tile → world-space position for spatial SFX (matches gx/gz in FarmScene).
   const tileAt = (t) => ({ x: t.x - WORLD_SIZE / 2 + 0.5, y: 0.5, z: t.y - WORLD_SIZE / 2 + 0.5 });
 
+  // What's underfoot at a tile — footsteps react to it (grass vs dry/wet soil).
+  const surfaceAt = (x, y) => {
+    if (!isFarmland(x, y, fieldHeight(gs.upgrades))) return 'grass';
+    return (gs.grid[y][x].moisture || 0) >= 1 ? 'dirtWet' : 'dirt';
+  };
+
   // ============================================
   // CORE ACTIONS
   // ============================================
@@ -813,6 +819,7 @@ export default function HanksHomestead() {
       gs.isMoving = true;
       gs.farmerDir = dir;
       gs.farmerPos = { x: newX, y: newY };
+      sounds.footstep(surfaceAt(newX, newY), tileAt(gs.farmerPos));
       requestRender();
       setTimeout(() => { gs.isMoving = false; requestRender(); }, 150);
     } else {
@@ -874,6 +881,7 @@ export default function HanksHomestead() {
         gs.farmerPos = next;
         gs.pathQueue = rest;
         gs.isMoving = true;
+        sounds.footstep(surfaceAt(next.x, next.y), tileAt(next));
         requestRender();
         setTimeout(() => { gs.isMoving = false; requestRender(); }, 80 / sf);
 

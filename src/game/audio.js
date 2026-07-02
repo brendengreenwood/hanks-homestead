@@ -128,8 +128,26 @@ const noise = ({ d = 0.08, v = 0.1, type = 'bandpass', f = 1500, q = 1, at = 0, 
   } catch (e) {}
 };
 
+// Footsteps react to the surface underfoot. Each step is slightly randomized
+// in pitch/level so a walk cycle doesn't machine-gun.
+const jitter = (v, amt = 0.15) => v * (1 - amt + Math.random() * amt * 2);
+const FOOTSTEPS = {
+  grass: (pos) => {
+    noise({ f: jitter(1600), q: 0.9, d: 0.05, v: jitter(0.05), pos }); // dry swish
+  },
+  dirt: (pos) => {
+    noise({ f: jitter(620), q: 0.8, d: 0.055, v: jitter(0.07), pos }); // soft scuff
+    tone({ f: jitter(210), f2: 170, d: 0.045, v: 0.03, pos });
+  },
+  dirtWet: (pos) => {
+    noise({ f: jitter(420), q: 2.2, d: 0.07, v: jitter(0.08), pos }); // squelch
+    tone({ f: jitter(340), f2: 210, type: 'sine', d: 0.06, v: 0.035, at: 0.012, pos });
+  },
+};
+
 // ---- The sound bank. Tile-anchored sounds accept a world position. -------
 export const createSounds = () => ({
+  footstep: (material, pos) => (FOOTSTEPS[material] || FOOTSTEPS.grass)(pos),
   click: () => tone({ f: 1150, d: 0.035, v: 0.05 }),
   plant: (pos) => {
     noise({ f: 700, q: 0.8, d: 0.07, v: 0.16, pos }); // dirt scuff
