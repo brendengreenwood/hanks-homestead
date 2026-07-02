@@ -853,16 +853,8 @@ function Farmer({ gs }) {
   // NB: no `position` prop here — React would re-apply it on every requestRender
   // and snap him to the target tile, defeating the useFrame glide. useFrame owns
   // the position (seeded once on its first run).
-  return (
-    <group ref={ref}>
-      {dressed}
-      {gs.speechBubble && !gs.showSellModal && (
-        <Html position={[0, 1.45, 0]} center zIndexRange={[30, 10]} style={{ pointerEvents: 'none' }}>
-          <div className="hank-speech">{gs.speechBubble}</div>
-        </Html>
-      )}
-    </group>
-  );
+  // Hank's speech now renders in the HUD advisor dock, not as a world bubble.
+  return <group ref={ref}>{dressed}</group>;
 }
 
 // ============================================

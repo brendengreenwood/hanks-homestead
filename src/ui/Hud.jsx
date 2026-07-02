@@ -1,5 +1,5 @@
 import React from 'react';
-import { CROPS, FEED_COST, SEASONS, SEASON_ACTIONS, seasonForDay, yearForDay, dayOfSeason, SEASON_LENGTH, storedTotal, UPGRADES, upgradeCost } from '../game/constants.js';
+import { CROPS, FEED_COST, FIELD_OFFSET, FIELD_SIZE, SEASONS, SEASON_ACTIONS, WATER_DAYS, fieldHeight, seasonForDay, yearForDay, dayOfSeason, SEASON_LENGTH, storedTotal, UPGRADES, upgradeCost } from '../game/constants.js';
 import { storageCapacity } from '../game/logic.js';
 import './hud.css';
 
@@ -60,6 +60,13 @@ export default function Hud({ gs, actions }) {
         <button onClick={() => actions.rotateCam(1)} aria-label="Rotate right">⟳</button>
       </div>
 
+      {/* ===== Advisor portrait + live indicators + job queue (all platforms) ===== */}
+      <div className="left-stack">
+        <AdvisorDock gs={gs} actions={actions} />
+        <Indicators gs={gs} actions={actions} season={season} />
+        <JobQueue gs={gs} actions={actions} />
+      </div>
+
       {/* Season (top-left, desktop) */}
       <div className="season-chip">
         <span className="season-icon">{sd.icon}</span>
@@ -73,6 +80,7 @@ export default function Hud({ gs, actions }) {
           🏪 Shop
         </button>
         <button className="shop-btn" onClick={actions.toggleStore}>🚜 Supply</button>
+        <button className="icon-btn" title="Almanac" onClick={() => actions.openAlmanac()}>📖</button>
         <button className="icon-btn" title="Reset game" onClick={actions.resetGame}>↺</button>
       </div>
 
@@ -203,9 +211,186 @@ export default function Hud({ gs, actions }) {
         cropEntries={cropEntries}
       />
 
-      {/* Market + Farm Supply modals */}
+      {/* Market + Farm Supply + Almanac modals */}
       {gs.showSellModal && <SellModal gs={gs} actions={actions} />}
       {gs.showStore && <Store gs={gs} actions={actions} />}
+      {gs.showAlmanac && <Almanac gs={gs} actions={actions} />}
+    </div>
+  );
+}
+
+// ============================================
+// ADVISOR DOCK — Hank's portrait; his lines dock here (not in the 3D world).
+// Tapping the portrait opens the Almanac.
+// ============================================
+function AdvisorDock({ gs, actions }) {
+  return (
+    <div className="advisor">
+      <button className="advisor-face" onClick={() => actions.openAlmanac()} aria-label="Open Hank's Almanac">
+        👨‍🌾
+      </button>
+      {gs.speechBubble && !gs.showSellModal && !gs.showAlmanac && (
+        <div className="advisor-bubble">{gs.speechBubble}</div>
+      )}
+    </div>
+  );
+}
+
+// ============================================
+// INDICATORS — live condition chips; each deep-links into the Almanac.
+// ============================================
+function Indicators({ gs, actions, season }) {
+  const fh = fieldHeight(gs.upgrades);
+  let thirsty = 0;
+  let withered = 0;
+  for (let y = FIELD_OFFSET; y < FIELD_OFFSET + fh; y++) {
+    for (let x = FIELD_OFFSET; x < FIELD_OFFSET + FIELD_SIZE; x++) {
+      const cell = gs.grid[y]?.[x];
+      if (!cell || !cell.crop) continue;
+      if (cell.harvestPenalty) withered++;
+      else if (season === 'summer' && cell.growth < CROPS[cell.crop].growTime && (cell.moisture || 0) === 0) thirsty++;
+    }
+  }
+  const stored = storedTotal(gs.inventory);
+  const cap = storageCapacity(gs.buildings, gs.upgrades?.silo || 0);
+  const dueSoon = (gs.contracts || []).filter((k) => k.due - gs.day <= 2);
+  const sellNow = Object.keys(CROPS).filter(
+    (id) => (gs.inventory[id] || 0) > 0 && (gs.prices?.[id] ?? CROPS[id].sellPrice) >= CROPS[id].sellPrice * 1.15
+  );
+
+  const chips = [];
+  if (gs.scorchDay === gs.day) chips.push({ key: 'scorch', cls: 'hot', txt: '🔥 Scorcher', topic: 'water' });
+  if (thirsty > 0) chips.push({ key: 'thirsty', cls: 'warn', txt: `🥵 ${thirsty} dry`, topic: 'water' });
+  if (withered > 0) chips.push({ key: 'wither', cls: 'warn', txt: `🥀 ${withered}`, topic: 'water' });
+  if (cap > 0 && stored / cap >= 0.8) chips.push({ key: 'store', cls: 'warn', txt: `🎒 ${Math.round((stored / cap) * 100)}%`, topic: 'market' });
+  if (dueSoon.length > 0)
+    chips.push({ key: 'contract', cls: 'hot', txt: `📜 due ${Math.max(0, Math.min(...dueSoon.map((k) => k.due - gs.day)))}d`, topic: 'market' });
+  if (sellNow.length > 0) chips.push({ key: 'sell', cls: 'good', txt: `📈 ${sellNow.map((id) => CROPS[id].icon).join('')}`, topic: 'market' });
+
+  if (chips.length === 0) return null;
+  return (
+    <div className="indicators">
+      {chips.map((c) => (
+        <button key={c.key} className={`ind-chip ${c.cls}`} onClick={() => actions.openAlmanac(c.topic)}>
+          {c.txt}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ============================================
+// JOB QUEUE — RTS-style command queue. The running job shows remaining tiles;
+// queued jobs wait their turn. ✕ cancels.
+// ============================================
+const ACTION_ICONS = { plant: '🌱', water: '💧', clean: '🧪', harvest: '✂️' };
+
+function JobQueue({ gs, actions }) {
+  const a = gs.activeJob;
+  const queued = gs.jobs || [];
+  if (!a && queued.length === 0) return null;
+  const remaining = gs.isAutoActing ? gs.autoActionQueue.length : a ? a.total : 0;
+  return (
+    <div className="jobq">
+      {a && (
+        <div className="jq-chip active">
+          <span className="jq-ico">{ACTION_ICONS[a.action] || '⚙️'}</span>
+          {a.crop && <span className="jq-ico">{CROPS[a.crop].icon}</span>}
+          <span className="jq-n">×{remaining}</span>
+          <button className="jq-x" onClick={actions.cancelActiveJob} aria-label="Cancel current job">✕</button>
+        </div>
+      )}
+      {queued.map((j) => (
+        <div className="jq-chip" key={j.id}>
+          <span className="jq-ico">{ACTION_ICONS[j.action] || '⚙️'}</span>
+          {j.crop && <span className="jq-ico">{CROPS[j.crop].icon}</span>}
+          <span className="jq-n">×{j.total}</span>
+          <button className="jq-x" onClick={() => actions.cancelJob(j.id)} aria-label="Remove queued job">✕</button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ============================================
+// ALMANAC — the system explainer, deep-linked from indicators & the portrait.
+// ============================================
+const CROP_NICHES = {
+  wheat: 'Cheap & safe. Keeps forever — hold it and sell at the spring peak.',
+  carrot: 'Budget crop. Needs the least summer watering.',
+  tomato: 'Best gold-for-gold at harvest. Spoils fast — sell right away.',
+  corn: 'Stores well — the other crop worth holding for spring (some spoilage).',
+  pumpkin: 'Biggest payout per tile. Pricey seeds, thirstiest, spoils — fall cash.',
+};
+
+function Almanac({ gs, actions }) {
+  const topics = [
+    { id: 'calendar', name: '📅 Seasons' },
+    { id: 'water', name: '💧 Water' },
+    { id: 'crops', name: '🌱 Crops' },
+    { id: 'market', name: '💰 Market' },
+  ];
+  const t = gs.almanacTopic || 'calendar';
+  return (
+    <div className="modal-backdrop">
+      <div className="modal almanac">
+        <h2>📖 Hank's Almanac</h2>
+        <div className="alm-tabs">
+          {topics.map((x) => (
+            <button key={x.id} className={`alm-tab ${t === x.id ? 'active' : ''}`} onClick={() => actions.setAlmanacTopic(x.id)}>
+              {x.name}
+            </button>
+          ))}
+        </div>
+
+        <div className="alm-body">
+          {t === 'calendar' && (
+            <>
+              <div className="alm-row"><span className="alm-ico">🌸</span><div><b>Spring — plant.</b> Rain waters the field for free. Anything not planted by summer waits a whole year.</div></div>
+              <div className="alm-row"><span className="alm-ico">☀️</span><div><b>Summer — water & feed.</b> Soil dries every day; crops only grow on moist soil. Feed (−{FEED_COST}g) doubles a crop's harvest.</div></div>
+              <div className="alm-row"><span className="alm-ico">🍂</span><div><b>Fall — harvest.</b> Ripe crops go into storage. Unharvested crops are lost when spring returns!</div></div>
+              <div className="alm-row"><span className="alm-ico">❄️</span><div><b>Winter — sell (or hold).</b> The elevator buys year-round — winter is planning time, and prices climb toward spring.</div></div>
+              <div className="alm-row"><span className="alm-ico">🎯</span><div>Drag across tiles to queue work for Hank — queue several jobs and he'll run them in order.</div></div>
+            </>
+          )}
+          {t === 'water' && (
+            <>
+              <div className="alm-row"><span className="alm-ico">💧</span><div>One watering keeps soil moist for <b>{WATER_DAYS} days</b>. The dirt shows it:
+                <span className="soil-key"><i style={{ background: '#5C4033' }} /> wet <i style={{ background: '#77512E' }} /> drying <i style={{ background: '#8B5A2B' }} /> parched</span></div></div>
+              <div className="alm-row"><span className="alm-ico">🔥</span><div><b>Scorchers</b> (about 1 day in 3) dry soil twice as fast. The light goes harsh and amber — water that day.</div></div>
+              <div className="alm-row"><span className="alm-ico">🥀</span><div>A crop on parched soil <b>withers</b> (orange pip). It still harvests, but the feed bonus — and the {FEED_COST}g you paid — is gone.</div></div>
+              <div className="alm-row"><span className="alm-ico">💦</span><div><b>Sprinklers</b> water every thirsty tile each morning (1g/tile) — scorcher-proof, hands-free.</div></div>
+            </>
+          )}
+          {t === 'crops' && (
+            <>
+              <div className="alm-note">🧪 Feed costs {FEED_COST}g a tile and doubles that harvest — unless the crop withers.</div>
+              {Object.entries(CROPS).map(([id, c]) => (
+                <div className="alm-crop" key={id}>
+                  <span className="alm-ico">{c.icon}</span>
+                  <div>
+                    <b>{c.name}</b>
+                    <small>
+                      {c.seedPrice}g seed · sells ~{c.sellPrice}g · {c.shelfLife >= 999 ? 'keeps ∞' : `keeps ~${c.shelfLife}d`} · 💧×{Math.max(0, c.growTime - 5)}
+                    </small>
+                    <small className="alm-niche">{CROP_NICHES[id]}</small>
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+          {t === 'market' && (
+            <>
+              <div className="alm-row"><span className="alm-ico">📈</span><div>Prices <b>peak in spring</b> (lean season) and <b>bottom out in fall</b> (harvest glut). The sparklines in the Sell window show the trend.</div></div>
+              <div className="alm-row"><span className="alm-ico">⚖️</span><div>Dumping a big pile walks the price down as you sell. <b>Spread sales across days</b> and the market recovers between.</div></div>
+              <div className="alm-row"><span className="alm-ico">🎒</span><div>Storage is limited — silos add room. Perishables rot a little every day; grain keeps.</div></div>
+              <div className="alm-row"><span className="alm-ico">📜</span><div><b>Contracts</b> lock a price now for delivery later — a hedge for crops that won't keep. Miss delivery and pay a 25% penalty.</div></div>
+            </>
+          )}
+        </div>
+
+        <button className="alm-close" onClick={actions.closeAlmanac}>Done</button>
+      </div>
     </div>
   );
 }

@@ -77,10 +77,8 @@ export default function HanksHomestead() {
     selectionEnd: null,
     isAutoActing: false,
     autoActionQueue: [],
-    pendingActionType: null,
     isPathing: false,
     pathQueue: [],
-    pendingActionQueue: [],
     speechBubble: null,
     speechTimeout: null,
     notification: null,
@@ -90,6 +88,11 @@ export default function HanksHomestead() {
     showStore: false,
     camAz: Math.PI / 4, // camera azimuth (mobile: snapped to fixed angles)
     camTop: false, // top-down view toggle
+    jobs: [], // queued drag-jobs: { id, action, crop, tiles, total } — run in order
+    activeJob: null, // the job Hank is walking to / working through
+    jobSeq: 1,
+    showAlmanac: false,
+    almanacTopic: 'calendar',
   });
 
   const [version, forceUpdate] = useState(0);
@@ -540,8 +543,10 @@ export default function HanksHomestead() {
     gs.pathQueue = [];
     gs.isAutoActing = false;
     gs.autoActionQueue = [];
-    gs.pendingActionQueue = [];
-    gs.pendingActionType = null;
+    gs.jobs = [];
+    gs.activeJob = null;
+    gs.jobSeq = 1;
+    gs.showAlmanac = false;
     gs.showShop = false;
     gs.showSellModal = false;
     gs.showStore = false;
@@ -663,7 +668,46 @@ export default function HanksHomestead() {
     }
   };
 
-  // Finalize a drag selection into a path + auto-action queue (snake order).
+  // ---- Job queue (RTS-style): each drag becomes a job that captures the
+  // action AND crop at enqueue time, so the player can line up the next
+  // planting while Hank works through the current one.
+  const startNextJob = () => {
+    if (gs.activeJob || gs.isPathing || gs.isAutoActing) return;
+    const job = gs.jobs.shift();
+    if (!job) return;
+    gs.activeJob = job;
+    const first = job.tiles[0];
+    const path = findPath(gs.buildings, gs.farmerPos.x, gs.farmerPos.y, first.x, first.y);
+    if (path.length > 0) {
+      gs.pathQueue = path;
+      gs.isPathing = true;
+    } else {
+      gs.autoActionQueue = job.tiles;
+      gs.isAutoActing = true;
+    }
+    requestRender();
+  };
+
+  // Finish/abort the running job and pull the next one from the queue.
+  const finishActiveJob = () => {
+    gs.activeJob = null;
+    gs.isAutoActing = false;
+    gs.autoActionQueue = [];
+    gs.isPathing = false;
+    gs.pathQueue = [];
+    startNextJob();
+  };
+
+  const cancelAllJobs = () => {
+    gs.jobs = [];
+    gs.activeJob = null;
+    gs.isAutoActing = false;
+    gs.autoActionQueue = [];
+    gs.isPathing = false;
+    gs.pathQueue = [];
+  };
+
+  // Finalize a drag selection into a queued job (snake order).
   const finalizeSelection = () => {
     if (!gs.isDragging || !gs.selectionStart || !gs.selectionEnd) {
       gs.isDragging = false;
@@ -696,18 +740,14 @@ export default function HanksHomestead() {
       }
     }
 
-    const firstCell = queue[0];
-    const path = findPath(gs.buildings, gs.farmerPos.x, gs.farmerPos.y, firstCell.x, firstCell.y);
-
-    gs.pendingActionType = gs.selectedAction;
-    if (path.length > 0) {
-      gs.pathQueue = path;
-      gs.isPathing = true;
-      gs.pendingActionQueue = queue;
-    } else {
-      gs.autoActionQueue = queue;
-      gs.isAutoActing = true;
-    }
+    gs.jobs.push({
+      id: gs.jobSeq++,
+      action: gs.selectedAction,
+      crop: gs.selectedAction === 'plant' ? gs.selectedCrop : null,
+      tiles: queue,
+      total: queue.length,
+    });
+    startNextJob();
     requestRender();
   };
 
@@ -725,12 +765,9 @@ export default function HanksHomestead() {
     const newX = Math.max(0, Math.min(WORLD_SIZE - 1, gs.farmerPos.x + dx));
     const newY = Math.max(0, Math.min(WORLD_SIZE - 1, gs.farmerPos.y + dy));
 
-    // manual movement cancels any in-progress auto path
-    if (gs.isPathing) {
-      gs.isPathing = false;
-      gs.pathQueue = [];
-      gs.pendingActionQueue = [];
-      gs.pendingActionType = null;
+    // manual movement is a full stop: cancel the running job and the queue
+    if (gs.isPathing || gs.isAutoActing || gs.activeJob || gs.jobs.length > 0) {
+      cancelAllJobs();
     }
 
     if (!isWalkable(gs.buildings, newX, newY)) {
@@ -771,13 +808,9 @@ export default function HanksHomestead() {
           return;
         }
         case 'escape':
-          gs.isPathing = false;
-          gs.pathQueue = [];
-          gs.pendingActionQueue = [];
-          gs.pendingActionType = null;
-          gs.isAutoActing = false;
-          gs.autoActionQueue = [];
+          cancelAllJobs();
           gs.showShop = false;
+          gs.showAlmanac = false;
           requestRender();
           return;
         default:
@@ -812,10 +845,9 @@ export default function HanksHomestead() {
 
         if (rest.length === 0) {
           gs.isPathing = false;
-          if (gs.pendingActionQueue.length > 0) {
-            gs.autoActionQueue = gs.pendingActionQueue;
+          if (gs.activeJob) {
+            gs.autoActionQueue = gs.activeJob.tiles;
             gs.isAutoActing = true;
-            gs.pendingActionQueue = [];
           }
         }
       }, 120 / sf);
@@ -827,25 +859,23 @@ export default function HanksHomestead() {
   // AUTO-ACTING (plant/water/feed/harvest along queue)
   // ============================================
   useEffect(() => {
-    if (gs.isAutoActing && gs.autoActionQueue.length > 0) {
-      const actionType = gs.pendingActionType || gs.selectedAction;
+    if (gs.isAutoActing && gs.autoActionQueue.length > 0 && gs.activeJob) {
+      const actionType = gs.activeJob.action;
+      const jobCrop = gs.activeJob.crop;
 
       if (actionType === 'plant') {
-        const seedKey = `${gs.selectedCrop}_seeds`;
+        const seedKey = `${jobCrop}_seeds`;
         if ((gs.inventory[seedKey] || 0) <= 0) {
-          gs.isAutoActing = false;
-          gs.autoActionQueue = [];
-          gs.pendingActionType = null;
           handleOutOfSeeds();
+          finishActiveJob(); // skip to the next queued job
+          requestRender();
           return;
         }
       }
       if (actionType === 'clean' && gs.gold < FEED_COST) {
-        gs.isAutoActing = false;
-        gs.autoActionQueue = [];
-        gs.pendingActionType = null;
         sounds.error();
         showNotification(`Out of gold for plant food (${FEED_COST}g each)!`, 'error');
+        finishActiveJob();
         requestRender();
         return;
       }
@@ -859,10 +889,10 @@ export default function HanksHomestead() {
         const cell = gs.grid[next.y][next.x];
 
         if (actionType === 'plant') {
-          const seedKey = `${gs.selectedCrop}_seeds`;
+          const seedKey = `${jobCrop}_seeds`;
           if (!cell.crop && (gs.inventory[seedKey] || 0) > 0) {
             gs.inventory[seedKey]--;
-            gs.grid[next.y][next.x] = { crop: gs.selectedCrop, growth: 0, moisture: 0, watered: false, fed: false, harvestPenalty: false };
+            gs.grid[next.y][next.x] = { crop: jobCrop, growth: 0, moisture: 0, watered: false, fed: false, harvestPenalty: false };
             sounds.plant();
           }
         } else if (actionType === 'water') {
@@ -897,10 +927,10 @@ export default function HanksHomestead() {
         setTimeout(() => { gs.isMoving = false; requestRender(); }, 100 / sf);
 
         if (rest.length === 0) {
-          gs.isAutoActing = false;
-          gs.pendingActionType = null;
           const names = { plant: 'Planting', water: 'Watering', clean: 'Feeding', harvest: 'Harvesting' };
-          showNotification(`${names[actionType] || 'Action'} complete!`, 'success');
+          const more = gs.jobs.length > 0 ? ` (${gs.jobs.length} job${gs.jobs.length > 1 ? 's' : ''} queued)` : '';
+          showNotification(`${names[actionType] || 'Action'} complete!${more}`, 'success');
+          finishActiveJob(); // chains straight into the next queued job
         }
       }, 150 / sf);
       return () => clearTimeout(timer);
@@ -929,6 +959,21 @@ export default function HanksHomestead() {
     toggleTopView: () => { gs.camTop = !gs.camTop; requestRender(); },
     openMarket: () => { gs.showSellModal = true; requestRender(); },
     closeSellModal: () => { gs.showSellModal = false; requestRender(); },
+    openAlmanac: (topic) => {
+      if (topic) gs.almanacTopic = topic;
+      gs.showAlmanac = true;
+      requestRender();
+    },
+    closeAlmanac: () => { gs.showAlmanac = false; requestRender(); },
+    setAlmanacTopic: (topic) => { gs.almanacTopic = topic; requestRender(); },
+    cancelJob: (id) => {
+      gs.jobs = gs.jobs.filter((j) => j.id !== id);
+      requestRender();
+    },
+    cancelActiveJob: () => {
+      finishActiveJob();
+      requestRender();
+    },
   };
 
   return (
