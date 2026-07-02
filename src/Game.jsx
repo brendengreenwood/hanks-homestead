@@ -141,6 +141,9 @@ export default function HanksHomestead() {
     requestRender();
   };
 
+  // Grid tile → world-space position for spatial SFX (matches gx/gz in FarmScene).
+  const tileAt = (t) => ({ x: t.x - WORLD_SIZE / 2 + 0.5, y: 0.5, z: t.y - WORLD_SIZE / 2 + 0.5 });
+
   // ============================================
   // CORE ACTIONS
   // ============================================
@@ -173,7 +176,7 @@ export default function HanksHomestead() {
       if ((gs.inventory[seedKey] || 0) > 0) {
         gs.inventory[seedKey]--;
         gs.grid[y][x] = { crop: gs.selectedCrop, growth: 0, moisture: 0, watered: false, fed: false, harvestPenalty: false };
-        sounds.plant();
+        sounds.plant(tileAt(gs.farmerPos));
         gs.actionTick++;
         showNotification(`Planted ${CROPS[gs.selectedCrop].icon} ${CROPS[gs.selectedCrop].name}!`, 'success');
       } else {
@@ -186,7 +189,7 @@ export default function HanksHomestead() {
       }
       gs.grid[y][x].moisture = WATER_DAYS;
       gs.grid[y][x].watered = true;
-      sounds.water();
+      sounds.water(tileAt(gs.farmerPos));
       gs.actionTick++;
       showNotification('Watered!', 'success');
     } else if (gs.selectedAction === 'clean' && cell.crop) {
@@ -202,7 +205,7 @@ export default function HanksHomestead() {
       } else {
         gs.gold -= FEED_COST;
         gs.grid[y][x].fed = true;
-        sounds.water();
+        sounds.water(tileAt(gs.farmerPos));
         gs.actionTick++;
         showNotification(`Applied plant food! (−${FEED_COST}g)`, 'success');
       }
@@ -230,7 +233,7 @@ export default function HanksHomestead() {
         }
         gs.inventory[cell.crop] = (gs.inventory[cell.crop] || 0) + Math.min(harvestAmount, space);
         gs.grid[y][x] = emptyCell();
-        sounds.harvest();
+        sounds.harvest(tileAt(gs.farmerPos));
         gs.actionTick++;
         showNotification(`Harvested ${cropData.icon} ${cropData.name}!${message}`, cell.harvestPenalty ? 'info' : 'success');
       } else {
@@ -893,19 +896,19 @@ export default function HanksHomestead() {
           if (!cell.crop && (gs.inventory[seedKey] || 0) > 0) {
             gs.inventory[seedKey]--;
             gs.grid[next.y][next.x] = { crop: jobCrop, growth: 0, moisture: 0, watered: false, fed: false, harvestPenalty: false };
-            sounds.plant();
+            sounds.plant(tileAt(next));
           }
         } else if (actionType === 'water') {
           if (cell.crop && !cell.watered) {
             gs.grid[next.y][next.x].moisture = WATER_DAYS;
             gs.grid[next.y][next.x].watered = true;
-            sounds.water();
+            sounds.water(tileAt(next));
           }
         } else if (actionType === 'clean') {
           if (cell.crop && !cell.fed && gs.gold >= FEED_COST) {
             gs.gold -= FEED_COST;
             gs.grid[next.y][next.x].fed = true;
-            sounds.water();
+            sounds.water(tileAt(next));
           }
         } else if (actionType === 'harvest') {
           if (cell.crop) {
@@ -916,7 +919,7 @@ export default function HanksHomestead() {
               if (!cell.harvestPenalty && cell.fed) harvestAmount = 2;
               gs.inventory[cell.crop] = (gs.inventory[cell.crop] || 0) + Math.min(harvestAmount, space);
               gs.grid[next.y][next.x] = emptyCell();
-              sounds.harvest();
+              sounds.harvest(tileAt(next));
             }
           }
         }

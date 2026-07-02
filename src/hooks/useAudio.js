@@ -1,49 +1,13 @@
-import { useCallback, useRef } from 'react';
+import { useMemo, useRef, useCallback } from 'react';
+import { createSounds, engine, MUSIC_ENABLED } from '../game/audio.js';
 
 // ============================================
-// SOUND SYSTEM (Web Audio synth + looping tracks)
+// SOUND HOOKS — thin React layer over the audio engine (src/game/audio.js).
+// SFX are synthesized through the mixer graph (highpass + compressor) and
+// support world-space positions for spatial panning.
 // ============================================
 
-export const useSound = () => {
-  const audioCtxRef = useRef(null);
-
-  const getAudioContext = () => {
-    if (!audioCtxRef.current) {
-      audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    return audioCtxRef.current;
-  };
-
-  const playTone = useCallback((frequency, duration = 0.1, type = 'sine', volume = 0.15) => {
-    try {
-      const ctx = getAudioContext();
-      const oscillator = ctx.createOscillator();
-      const gainNode = ctx.createGain();
-      oscillator.type = type;
-      oscillator.frequency.setValueAtTime(frequency, ctx.currentTime);
-      gainNode.gain.setValueAtTime(volume, ctx.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
-      oscillator.connect(gainNode);
-      gainNode.connect(ctx.destination);
-      oscillator.start(ctx.currentTime);
-      oscillator.stop(ctx.currentTime + duration);
-    } catch (e) {}
-  }, []);
-
-  return {
-    buy: () => { playTone(880, 0.08, 'sine', 0.1); setTimeout(() => playTone(1100, 0.1, 'sine', 0.1), 50); },
-    buyBulk: () => { playTone(880, 0.06, 'sine', 0.1); setTimeout(() => playTone(1100, 0.06, 'sine', 0.1), 40); setTimeout(() => playTone(1320, 0.1, 'sine', 0.1), 80); },
-    plant: () => { playTone(180, 0.08, 'sine', 0.15); setTimeout(() => playTone(120, 0.12, 'sine', 0.1), 30); },
-    water: () => { playTone(600, 0.08, 'triangle', 0.08); setTimeout(() => playTone(500, 0.08, 'triangle', 0.06), 60); setTimeout(() => playTone(400, 0.1, 'triangle', 0.04), 120); },
-    harvest: () => { playTone(523, 0.1, 'sine', 0.12); setTimeout(() => playTone(659, 0.1, 'sine', 0.12), 80); setTimeout(() => playTone(784, 0.15, 'sine', 0.1), 160); },
-    sell: () => { playTone(800, 0.05, 'square', 0.06); setTimeout(() => playTone(1000, 0.05, 'square', 0.06), 40); setTimeout(() => playTone(1200, 0.08, 'square', 0.05), 80); },
-    error: () => { playTone(300, 0.1, 'sine', 0.12); setTimeout(() => playTone(200, 0.15, 'sine', 0.1), 80); },
-    sleep: () => { playTone(440, 0.2, 'sine', 0.1); setTimeout(() => playTone(349, 0.2, 'sine', 0.08), 150); setTimeout(() => playTone(262, 0.4, 'sine', 0.06), 300); },
-    wake: () => { playTone(262, 0.15, 'sine', 0.08); setTimeout(() => playTone(330, 0.15, 'sine', 0.1), 120); setTimeout(() => playTone(392, 0.2, 'sine', 0.12), 240); },
-    click: () => { playTone(800, 0.03, 'sine', 0.05); },
-    getAudioContext,
-  };
-};
+export const useSound = () => useMemo(() => createSounds(), []);
 
 const MUSIC_TRACKS = {
   spring: '/audio/ambient-spring.wav',
@@ -52,15 +16,17 @@ const MUSIC_TRACKS = {
   winter: '/audio/ambient-winter.wav',
 };
 
-const NATURE_TRACKS = {
-  spring: '/audio/nature-spring.wav',
-  summer: '/audio/nature-summer.wav',
-  fall: '/audio/nature-fall.wav',
-  winter: '/audio/nature-winter.wav',
+// Disabled loops resolve to this: same API, zero fetches, zero playback.
+const SILENT = {
+  preloadAll: async () => {},
+  changeSeason: () => {},
+  setVolume: () => {},
+  toggle: () => {},
+  isPlaying: () => false,
 };
 
-// Generic looping-track player keyed by season. Shared by music + ambience.
-const useAudioLoop = (getAudioContext, tracks, defaultVolume) => {
+// Generic looping-track player keyed by season (kept for when music returns).
+const useAudioLoop = (tracks, defaultVolume, enabled) => {
   const buffersRef = useRef({});
   const currentSourceRef = useRef(null);
   const currentGainRef = useRef(null);
@@ -71,7 +37,7 @@ const useAudioLoop = (getAudioContext, tracks, defaultVolume) => {
   const loadTrack = useCallback(async (season) => {
     if (buffersRef.current[season]) return buffersRef.current[season];
     try {
-      const ctx = getAudioContext();
+      const ctx = engine.ensure();
       const response = await fetch(tracks[season]);
       const arrayBuffer = await response.arrayBuffer();
       const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
@@ -80,14 +46,14 @@ const useAudioLoop = (getAudioContext, tracks, defaultVolume) => {
     } catch (e) {
       return null;
     }
-  }, [getAudioContext, tracks]);
+  }, [tracks]);
 
   const preloadAll = useCallback(async () => {
     await Promise.all(Object.keys(tracks).map(loadTrack));
   }, [loadTrack, tracks]);
 
   const playTrack = useCallback((season, fadeIn = 0) => {
-    const ctx = getAudioContext();
+    const ctx = engine.ensure();
     const buffer = buffersRef.current[season];
     if (!buffer) return;
 
@@ -97,7 +63,7 @@ const useAudioLoop = (getAudioContext, tracks, defaultVolume) => {
     source.buffer = buffer;
     source.loop = true;
     source.connect(gainNode);
-    gainNode.connect(ctx.destination);
+    gainNode.connect(engine.musicBus || ctx.destination);
 
     if (fadeIn > 0) {
       gainNode.gain.setValueAtTime(0, ctx.currentTime);
@@ -111,12 +77,12 @@ const useAudioLoop = (getAudioContext, tracks, defaultVolume) => {
     currentGainRef.current = gainNode;
     currentSeasonRef.current = season;
     isPlayingRef.current = true;
-  }, [getAudioContext]);
+  }, []);
 
   const stopTrack = useCallback((fadeOut = 0) => {
     if (!currentSourceRef.current || !currentGainRef.current) return;
 
-    const ctx = getAudioContext();
+    const ctx = engine.ensure();
     const gain = currentGainRef.current;
     const source = currentSourceRef.current;
 
@@ -133,7 +99,7 @@ const useAudioLoop = (getAudioContext, tracks, defaultVolume) => {
     currentSourceRef.current = null;
     currentGainRef.current = null;
     isPlayingRef.current = false;
-  }, [getAudioContext]);
+  }, []);
 
   const changeSeason = useCallback(async (newSeason, fadeOutDuration = 1.5, fadeInDuration = 0.2) => {
     if (currentSeasonRef.current === newSeason && isPlayingRef.current) return;
@@ -152,10 +118,10 @@ const useAudioLoop = (getAudioContext, tracks, defaultVolume) => {
   const setVolume = useCallback((vol) => {
     volumeRef.current = Math.max(0, Math.min(1, vol));
     if (currentGainRef.current) {
-      const ctx = getAudioContext();
+      const ctx = engine.ensure();
       currentGainRef.current.gain.setValueAtTime(volumeRef.current, ctx.currentTime);
     }
-  }, [getAudioContext]);
+  }, []);
 
   const toggle = useCallback(() => {
     if (isPlayingRef.current) {
@@ -165,8 +131,10 @@ const useAudioLoop = (getAudioContext, tracks, defaultVolume) => {
     }
   }, [stopTrack, playTrack]);
 
-  return { preloadAll, changeSeason, setVolume, toggle, isPlaying: () => isPlayingRef.current };
+  const api = { preloadAll, changeSeason, setVolume, toggle, isPlaying: () => isPlayingRef.current };
+  return enabled ? api : SILENT;
 };
 
-export const useMusic = (getAudioContext) => useAudioLoop(getAudioContext, MUSIC_TRACKS, 0.3);
-export const useAmbience = (getAudioContext) => useAudioLoop(getAudioContext, NATURE_TRACKS, 0.25);
+export const useMusic = () => useAudioLoop(MUSIC_TRACKS, 0.3, MUSIC_ENABLED);
+// The nature-ambience layer never shipped real files; keep it silent.
+export const useAmbience = () => SILENT;

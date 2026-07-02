@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { CROPS, BUILDINGS, SEASONS, COLORS, WORLD_SIZE, FIELD_OFFSET, FIELD_SIZE, seasonForDay, fieldHeight } from '../game/constants.js';
 import { isFarmland } from '../game/logic.js';
 import { modelUrl, cropModelUrl, CROP_TRANSFORM, DECORATIONS, FARMER } from '../game/assets.js';
+import { engine as audioEngine } from '../game/audio.js';
 
 // Coarse pointer (phone/tablet): the HUD covers the edges, so world-anchored
 // building labels are redundant and collide with the touch controls.
@@ -890,6 +891,23 @@ function SeasonLighting({ season, shadowMap = 2048, scorch = false }) {
 // CAMERA RIG — on touch, hold a fixed isometric angle and ease toward the
 // discrete azimuth (gs.camAz) / top-down (gs.camTop) the UI buttons request.
 // ============================================
+// Keeps the Web Audio listener glued to the camera so positioned SFX pan
+// correctly as the view orbits. Throttled — orientation changes are slow.
+const _fwd = new THREE.Vector3();
+function AudioListenerSync() {
+  const tick = useRef(0);
+  useFrame(({ camera }) => {
+    if ((tick.current++ & 7) !== 0) return; // every 8th frame is plenty
+    camera.getWorldDirection(_fwd);
+    audioEngine.setListener(
+      camera.position.x, camera.position.y, camera.position.z,
+      _fwd.x, _fwd.y, _fwd.z,
+      camera.up.x, camera.up.y, camera.up.z
+    );
+  });
+  return null;
+}
+
 const ISO_POLAR = 0.93; // ~iso elevation
 const TOP_POLAR = 0.16; // near top-down
 function CameraRig({ gs }) {
@@ -944,6 +962,7 @@ export default function FarmScene({ gs, version, onTilePointerDown, onTilePointe
         touches={{ ONE: undefined, TWO: THREE.TOUCH.DOLLY_PAN }}
       />
       {lowSpec && <CameraRig gs={gs} />}
+      <AudioListenerSync />
 
       <SeasonLighting season={season} shadowMap={lowSpec ? 1024 : 2048} scorch={gs.scorchDay === gs.day} />
 
