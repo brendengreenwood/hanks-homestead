@@ -144,6 +144,14 @@ export default function HanksHomestead() {
     const season = seasonForDay(gs.day);
     const cell = gs.grid[y][x];
 
+    // Selling happens at the elevator, not on a tile — the winter action
+    // opens the market from anywhere.
+    if (gs.selectedAction === 'sell') {
+      gs.showSellModal = true;
+      requestRender();
+      return;
+    }
+
     if (!isFarmland(x, y, fieldHeight(gs.upgrades))) {
       sounds.error();
       showNotification("Can't farm here - go to the field!", 'error');
@@ -275,7 +283,9 @@ export default function HanksHomestead() {
     for (const [id, c] of Object.entries(CROPS)) {
       const count = gs.inventory[id] || 0;
       if (count > 0 && c.shelfLife < 999) {
-        const lost = Math.floor(count / c.shelfLife);
+        // ceil, not floor: a batch drains within shelfLife days no matter how
+        // small the pile — 7 tomatoes must not keep forever.
+        const lost = Math.ceil(count / c.shelfLife);
         if (lost > 0) { gs.inventory[id] -= lost; spoiled += lost; }
       }
     }
@@ -287,6 +297,16 @@ export default function HanksHomestead() {
     const c = CROPS[id];
     const drop = Math.min(0.25, qty * 0.004);
     gs.prices[id] = Math.max(Math.round(c.sellPrice * 0.4), Math.round((gs.prices[id] ?? c.sellPrice) * (1 - drop)));
+  };
+
+  // A batch walks the price down as it fills the elevator: it sells at the
+  // average of the pre- and post-impact price, so dumping a big pile earns
+  // less per unit than spreading sales across days (the price recovers via
+  // mean-reversion between sessions).
+  const sellRevenue = (id, qty) => {
+    const before = gs.prices[id] ?? CROPS[id].sellPrice;
+    applyMarketImpact(id, qty);
+    return Math.round((qty * (before + gs.prices[id])) / 2);
   };
 
   const ensureMarket = () => {
@@ -453,12 +473,11 @@ export default function HanksHomestead() {
     const count = gs.inventory[item] || 0;
     if (count <= 0) return;
     const qty = all ? count : 1;
-    const price = gs.prices[item] ?? CROPS[item].sellPrice;
-    gs.gold += price * qty;
+    const earned = sellRevenue(item, qty);
+    gs.gold += earned;
     gs.inventory[item] -= qty;
-    applyMarketImpact(item, qty);
     sounds.sell();
-    showNotification(`Sold ${qty} ${CROPS[item].icon} for ${price * qty}g!`, 'success');
+    showNotification(`Sold ${qty} ${CROPS[item].icon} for ${earned}g!`, 'success');
     requestRender();
   };
 
@@ -468,11 +487,10 @@ export default function HanksHomestead() {
     for (const item of Object.keys(CROPS)) {
       const count = gs.inventory[item] || 0;
       if (count <= 0) continue;
-      const price = gs.prices[item] ?? CROPS[item].sellPrice;
-      earned += price * count;
-      gs.gold += price * count;
+      const revenue = sellRevenue(item, count);
+      earned += revenue;
+      gs.gold += revenue;
       gs.inventory[item] = 0;
-      applyMarketImpact(item, count);
       sold += count;
     }
     if (sold > 0) {
@@ -494,6 +512,7 @@ export default function HanksHomestead() {
   };
 
   const resetGame = () => {
+    if (!window.confirm('Start over? This wipes your farm, gold, upgrades, and saved game.')) return;
     gs.gold = 200;
     gs.day = 1;
     gs.selectedAction = 'plant';

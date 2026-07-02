@@ -11,7 +11,7 @@ export default function Hud({ gs, actions }) {
 
   const harvested = cropEntries.map(([id, c]) => ({ id, c, count: gs.inventory[id] || 0 }));
   const totalHarvested = harvested.reduce((s, h) => s + h.count, 0);
-  const capacity = storageCapacity(gs.buildings);
+  const capacity = storageCapacity(gs.buildings, gs.upgrades?.silo || 0);
   const curAction = actionList.find((a) => a.id === gs.selectedAction);
 
   // Seasonal accent flows through CSS variables so the wood/parchment theme stays
