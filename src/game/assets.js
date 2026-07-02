@@ -24,14 +24,28 @@ export const MODELS = {
   // (straw hat + pitchfork) in the scene. Falls back to the procedural farmer.
   farmer: null,
 
-  // Crops: [growing sprout, mature]. The kit ships real growth-stage props.
+  // Crops: ordered growth stages — the LAST entry is the mature model, the
+  // ones before it are bucketed across the growing phase. Add/remove stage
+  // files freely; the scene picks by progress.
   crop: {
     wheat: ['crops_wheatStageA.glb', 'crops_wheatStageB.glb'],
-    carrot: ['crops_leafsStageA.glb', 'crop_carrot.glb'],
-    tomato: ['crops_leafsStageA.glb', 'flower_redA.glb'], // no tomato model; red stand-in
-    corn: ['crops_cornStageA.glb', 'crops_cornStageD.glb'],
-    pumpkin: ['crops_leafsStageB.glb', 'crop_pumpkin.glb'],
+    carrot: ['crops_leafsStageA.glb', 'crops_leafsStageB.glb', 'crop_carrot.glb'],
+    tomato: ['crops_leafsStageA.glb', 'crops_leafsStageB.glb', 'crop_tomato.glb'], // Kenney Food Kit fruit
+    corn: ['crops_cornStageA.glb', 'crops_cornStageB.glb', 'crops_cornStageC.glb', 'crops_cornStageD.glb'],
+    pumpkin: ['crops_leafsStageA.glb', 'crops_leafsStageB.glb', 'crop_pumpkin.glb'],
   },
+  // In the library, ready for future crops: crop_melon.glb, crop_turnip.glb
+};
+
+// Per-FILE scale overrides for models whose native size differs from the
+// Nature Kit crop props (the Food Kit tomato is a small single fruit).
+export const FILE_SCALE = {
+  'crop_tomato.glb': 4.5,
+};
+export const fileScaleFromUrl = (url) => {
+  if (!url) return 1;
+  const name = url.slice(url.lastIndexOf('/') + 1);
+  return FILE_SCALE[name] || 1;
 };
 
 // Per-crop scale + vertical offset so models sit nicely on a 1-unit tile.
@@ -96,8 +110,17 @@ export const modelUrl = (file) => {
   return ASSET_BASE + file;
 };
 
-export const cropModelUrl = (cropId, isMature) => {
-  const entry = MODELS.crop[cropId];
-  if (!entry) return null;
-  return modelUrl(entry[isMature ? 1 : 0]);
+// Pick the stage model for a crop: mature → last entry; growing → the
+// earlier entries bucketed evenly across progress [0..1).
+export const cropModelUrl = (cropId, progress, isMature) => {
+  const stages = MODELS.crop[cropId];
+  if (!stages || stages.length === 0) return null;
+  if (isMature || stages.length === 1) return modelUrl(stages[stages.length - 1]);
+  const growing = stages.length - 1;
+  const idx = Math.min(growing - 1, Math.floor(progress * growing));
+  return modelUrl(stages[idx]);
 };
+
+// Every stage URL, for preloading (avoids a placeholder flash on stage swap).
+export const allCropModelUrls = () =>
+  [...new Set(Object.values(MODELS.crop).flat())].map(modelUrl).filter(Boolean);

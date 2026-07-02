@@ -1,12 +1,15 @@
 import React, { Suspense, useEffect, useMemo, useRef } from 'react';
 import { Canvas, useFrame, createPortal, useThree } from '@react-three/fiber';
-import { OrbitControls, OrthographicCamera, useGLTF, useAnimations, Html } from '@react-three/drei';
+import { OrbitControls, OrthographicCamera, useGLTF, useAnimations, Html, Sparkles } from '@react-three/drei';
 import * as THREE from 'three';
 
 import { CROPS, BUILDINGS, SEASONS, COLORS, WORLD_SIZE, FIELD_OFFSET, FIELD_SIZE, seasonForDay, fieldHeight } from '../game/constants.js';
 import { isFarmland } from '../game/logic.js';
-import { modelUrl, cropModelUrl, CROP_TRANSFORM, DECORATIONS, FARMER } from '../game/assets.js';
+import { modelUrl, cropModelUrl, allCropModelUrls, fileScaleFromUrl, CROP_TRANSFORM, DECORATIONS, FARMER } from '../game/assets.js';
 import { engine as audioEngine } from '../game/audio.js';
+
+// Preload every crop stage so mid-season model swaps don't flash placeholders.
+allCropModelUrls().forEach((u) => useGLTF.preload(u));
 
 // Coarse pointer (phone/tablet): the HUD covers the edges, so world-anchored
 // building labels are redundant and collide with the touch controls.
@@ -97,43 +100,35 @@ function CropPlaceholder({ cropId, progress, mature }) {
   );
 }
 
+// Crop state reads from the plant itself, not status orbs:
+//   growth  → real stage models swap in as it ripens (see MODELS.crop)
+//   watered → the soil tint underneath (see soilColor)
+//   fed     → a lusher, larger plant
+//   withered→ a drooping, shrunken plant
+//   mature  → pristine full bloom with golden sparkles
 function Crop({ cell }) {
   const crop = CROPS[cell.crop];
   const mature = cell.growth >= crop.growTime;
   const progress = Math.min(cell.growth / crop.growTime, 1);
-  const url = cropModelUrl(cell.crop, mature);
+  const url = cropModelUrl(cell.crop, progress, mature);
   const t = CROP_TRANSFORM[cell.crop] || { scale: 0.6, y: 0 };
-  // sprout grows from ~45% to full size as it ripens, then swaps to the mature model
-  const modelScale = (mature ? 1 : 0.45 + 0.5 * progress) * t.scale;
+  // gentle size growth within each stage; fed plants run lusher, withered ones shrink
+  let modelScale = (mature ? 1.05 : 0.7 + 0.3 * progress) * t.scale * fileScaleFromUrl(url);
+  if (cell.fed && !cell.harvestPenalty) modelScale *= 1.12;
+  if (cell.harvestPenalty) modelScale *= 0.82;
 
   return (
-    <group position={[0, 0.08 + t.y, 0]}>
+    <group position={[0, 0.08 + t.y, 0]} rotation={cell.harvestPenalty ? [0.16, 0, 0.22] : [0, 0, 0]}>
       <ModelOrPlaceholder
         url={url}
         scale={modelScale}
         placeholder={<CropPlaceholder cropId={cell.crop} progress={progress} mature={mature} />}
       />
-      {/* ready-to-harvest beacon */}
-      {mature && (
-        <mesh position={[0.28, 0.95, 0.28]}>
-          <sphereGeometry args={[0.09, 12, 12]} />
-          <meshStandardMaterial color={COLORS.ui.green} emissive={COLORS.ui.green} emissiveIntensity={0.6} />
-        </mesh>
+      {/* pristine harvest-ready shimmer */}
+      {mature && !cell.harvestPenalty && (
+        <Sparkles count={5} scale={[0.7, 0.5, 0.7]} position={[0, 0.5, 0]} size={2.6} speed={0.35} opacity={0.85} color="#ffe9a8" />
       )}
-      {/* watered / fed / withered status pips */}
-      {!mature && cell.watered && <StatusPip color={COLORS.ui.blue} x={-0.28} />}
-      {!mature && cell.fed && <StatusPip color="#A78BFA" x={0.28} />}
-      {cell.harvestPenalty && <StatusPip color="#F97316" x={0} />}
     </group>
-  );
-}
-
-function StatusPip({ color, x }) {
-  return (
-    <mesh position={[x, 0.55, -0.28]}>
-      <sphereGeometry args={[0.06, 10, 10]} />
-      <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.4} />
-    </mesh>
   );
 }
 

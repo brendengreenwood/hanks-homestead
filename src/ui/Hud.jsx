@@ -358,7 +358,7 @@ function Almanac({ gs, actions }) {
               <div className="alm-row"><span className="alm-ico">💧</span><div>One watering keeps soil moist for <b>{WATER_DAYS} days</b>. The dirt shows it:
                 <span className="soil-key"><i style={{ background: '#5C4033' }} /> wet <i style={{ background: '#77512E' }} /> drying <i style={{ background: '#8B5A2B' }} /> parched</span></div></div>
               <div className="alm-row"><span className="alm-ico">🔥</span><div><b>Scorchers</b> (about 1 day in 3) dry soil twice as fast. The light goes harsh and amber — water that day.</div></div>
-              <div className="alm-row"><span className="alm-ico">🥀</span><div>A crop on parched soil <b>withers</b> (orange pip). It still harvests, but the feed bonus — and the {FEED_COST}g you paid — is gone.</div></div>
+              <div className="alm-row"><span className="alm-ico">🥀</span><div>A crop on parched soil <b>withers</b> — it droops and shrinks. It still harvests, but the feed bonus — and the {FEED_COST}g you paid — is gone. Ready crops stand tall and <b>sparkle</b>.</div></div>
               <div className="alm-row"><span className="alm-ico">💦</span><div><b>Sprinklers</b> water every thirsty tile each morning (1g/tile) — scorcher-proof, hands-free.</div></div>
             </>
           )}
