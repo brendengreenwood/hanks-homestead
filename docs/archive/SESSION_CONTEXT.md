@@ -1,3 +1,5 @@
+> **ARCHIVED 2026-07-02** — one-off debugging notes from the Canvas era, already self-marked outdated.
+
 # Session Context for Claude
 
 > ⚠️ **OUTDATED.** This file captured a one-off debugging session for the old

@@ -1,3 +1,5 @@
+> **ARCHIVED 2026-07-02** — describes the pre-three.js Canvas-2D era (or was superseded by BACKLOG.md / docs/systems/). Kept as memory; do not treat as current.
+
 # Roadmap
 
 ## Immediate Polish

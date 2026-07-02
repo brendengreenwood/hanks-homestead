@@ -2,6 +2,20 @@
 
 You're continuing development on **Hank's Homestead**, an isometric farming game.
 
+## Documentation system (maintain it!)
+
+Docs live in three time horizons — full process in `docs/README.md`:
+
+- **Future** → `BACKLOG.md` (roadmap/epics)
+- **Present** → `docs/systems/*.md` — the active state of each system.
+  **When you ship a change, update the relevant page(s)** so they always
+  match the game.
+- **Past** → `docs/decisions/LOG.md` — append-only decision log. **Every
+  substantial change gets an entry**: `D-NNN · date · what / why / rejected`.
+  Never edit old entries; a reversal is a new entry referencing the old one.
+- Superseded docs move to `docs/archive/` with an `> ARCHIVED <date> — <why>`
+  header instead of being deleted.
+
 ## Critical Context
 
 The game was migrated from a single-file pure-Canvas 2D renderer to **3D with
