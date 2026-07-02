@@ -68,13 +68,29 @@ export const COLORS = {
 // Tuned so spring growth alone isn't enough — summer watering is required.
 // sellPrice is the long-run mean the market reverts to. shelfLife = days a full
 // batch survives in storage before it's gone (grain keeps; produce spoils fast).
+//
+// Each crop has a sim-tuned niche (fed profit/tile at its optimal sell day):
+//   wheat   — carry anchor: infinite shelf, sell the spring peak; cheap, safe.
+//   carrot  — budget produce: shortest summer exposure, modest fall cash.
+//   tomato  — fall cash: best profit-per-gold at harvest, spoils fast.
+//   corn    — second carry crop: long shelf, but holding costs real spoilage.
+//   pumpkin — per-tile king: capital-gated, thirstiest, perishable fall cash.
 export const CROPS = {
   wheat: { name: 'Wheat', growTime: 6, seedPrice: 10, sellPrice: 25, shelfLife: 999, color: '#7D9A4B', matureColor: '#DAA520', icon: '🌾' },
-  carrot: { name: 'Carrot', growTime: 8, seedPrice: 15, sellPrice: 40, shelfLife: 14, color: '#228B22', matureColor: '#32CD32', icon: '🥕' },
-  tomato: { name: 'Tomato', growTime: 8, seedPrice: 20, sellPrice: 55, shelfLife: 8, color: '#2E8B2E', matureColor: '#DC143C', icon: '🍅' },
-  corn: { name: 'Corn', growTime: 9, seedPrice: 25, sellPrice: 75, shelfLife: 30, color: '#6B8E23', matureColor: '#F4D03F', icon: '🌽' },
-  pumpkin: { name: 'Pumpkin', growTime: 9, seedPrice: 40, sellPrice: 120, shelfLife: 20, color: '#2E7D32', matureColor: '#FF7518', icon: '🎃' },
+  carrot: { name: 'Carrot', growTime: 7, seedPrice: 14, sellPrice: 42, shelfLife: 14, color: '#228B22', matureColor: '#32CD32', icon: '🥕' },
+  tomato: { name: 'Tomato', growTime: 8, seedPrice: 18, sellPrice: 62, shelfLife: 6, color: '#2E8B2E', matureColor: '#DC143C', icon: '🍅' },
+  corn: { name: 'Corn', growTime: 9, seedPrice: 30, sellPrice: 60, shelfLife: 60, color: '#6B8E23', matureColor: '#F4D03F', icon: '🌽' },
+  pumpkin: { name: 'Pumpkin', growTime: 9, seedPrice: 55, sellPrice: 112, shelfLife: 12, color: '#2E7D32', matureColor: '#FF7518', icon: '🎃' },
 };
+
+// Plant food: gold per application (+1 yield on that tile unless it withers).
+// Priced so feeding is a per-crop unit-economics call, not a free double.
+export const FEED_COST = 12;
+
+// Scorcher days: each summer day has this chance of extra evaporation (soil
+// dries 2 instead of 1 that day). Punishes a lazy watering cadence and gives
+// sprinklers their insurance value.
+export const SCORCH_CHANCE = 0.3;
 
 // ---- Market ----------------------------------------------------------------
 export const PRICE_AMP = 0.35; // seasonal swing (±35% around the mean)
@@ -102,7 +118,7 @@ export const SILO_CAPACITY = 60;
 export const ROWS_PER_PLOT = 2; // extra farmland rows per plot purchased
 export const UPGRADES = {
   tractor: { name: 'Tractor', icon: '🚜', max: 3, baseCost: 300, growth: 1.7, desc: 'Hank works faster' },
-  sprinkler: { name: 'Sprinklers', icon: '💧', max: 1, baseCost: 500, growth: 2, desc: 'Auto-water in summer (daily running cost)' },
+  sprinkler: { name: 'Sprinklers', icon: '💧', max: 1, baseCost: 500, growth: 2, desc: 'Auto-waters thirsty crops — scorcher insurance (small daily cost)' },
   silo: { name: 'Silo', icon: '🏗️', max: 6, baseCost: 220, growth: 1.55, desc: `+${SILO_CAPACITY} storage` },
   plot: { name: 'Field Plot', icon: '🟫', max: 6, baseCost: 180, growth: 1.5, desc: `+${ROWS_PER_PLOT} rows of farmland` },
 };

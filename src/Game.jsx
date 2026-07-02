@@ -2,8 +2,10 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
   CROPS,
+  FEED_COST,
   FIELD_OFFSET,
   FIELD_SIZE,
+  SCORCH_CHANCE,
   SEASON_ACTIONS,
   CONTRACT_PENALTY,
   CONTRACT_SLOTS,
@@ -189,13 +191,17 @@ export default function HanksHomestead() {
         showNotification('Can only feed in Summer!', 'info');
         return;
       }
-      if (!cell.fed) {
+      if (cell.fed) {
+        showNotification('Already fed!', 'info');
+      } else if (gs.gold < FEED_COST) {
+        sounds.error();
+        showNotification(`Plant food costs ${FEED_COST}g — not enough gold!`, 'error');
+      } else {
+        gs.gold -= FEED_COST;
         gs.grid[y][x].fed = true;
         sounds.water();
         gs.actionTick++;
-        showNotification('Applied plant food!', 'success');
-      } else {
-        showNotification('Already fed!', 'info');
+        showNotification(`Applied plant food! (−${FEED_COST}g)`, 'success');
       }
     } else if (gs.selectedAction === 'harvest' && cell.crop) {
       if (season !== 'fall') {
@@ -239,7 +245,7 @@ export default function HanksHomestead() {
   //  • summer — dry; crops only grow when there's moisture (so you must water).
   //    A dry day stunts the crop (reduced yield at harvest).
   //  • fall/winter — no growth.
-  const growCropsForDay = (season) => {
+  const growCropsForDay = (season, scorcher = false) => {
     if (season !== 'spring' && season !== 'summer') return;
     for (let y = 0; y < WORLD_SIZE; y++) {
       for (let x = 0; x < WORLD_SIZE; x++) {
@@ -252,6 +258,7 @@ export default function HanksHomestead() {
         } else {
           if (cell.moisture > 0) {
             cell.moisture--;
+            if (scorcher) cell.moisture = Math.max(0, cell.moisture - 1); // extra evaporation
             cell.watered = cell.moisture > 0;
             cell.growth++;
           } else {
@@ -334,14 +341,16 @@ export default function HanksHomestead() {
     requestRender();
   };
 
-  // Sprinklers: each summer day, auto-water planted crops for a per-tile fee.
+  // Sprinklers: each summer day, top up THIRSTY crops (moisture < 2) for a
+  // per-tile fee. Running before the day's growth tick, they cover scorchers
+  // too — insurance a manual watering cadence can't match.
   const sprinklerTick = (season) => {
     if (season !== 'summer' || !gs.upgrades.sprinkler || !gs.sprinklerOn) return;
+    const thirsty = (cell) => cell.crop && cell.growth < CROPS[cell.crop].growTime && cell.moisture < 2;
     let tiles = 0;
     for (let y = 0; y < WORLD_SIZE; y++) {
       for (let x = 0; x < WORLD_SIZE; x++) {
-        const cell = gs.grid[y][x];
-        if (cell.crop && cell.growth < CROPS[cell.crop].growTime) tiles++;
+        if (thirsty(gs.grid[y][x])) tiles++;
       }
     }
     if (tiles === 0) return;
@@ -355,13 +364,13 @@ export default function HanksHomestead() {
     for (let y = 0; y < WORLD_SIZE; y++) {
       for (let x = 0; x < WORLD_SIZE; x++) {
         const cell = gs.grid[y][x];
-        if (cell.crop && cell.growth < CROPS[cell.crop].growTime) {
+        if (thirsty(cell)) {
           cell.moisture = WATER_DAYS;
           cell.watered = true;
         }
       }
     }
-    showNotification(`💧 Sprinklers watered ${tiles} crops (−${cost}g)`, 'info');
+    showNotification(`💧 Sprinklers watered ${tiles} thirsty crops (−${cost}g)`, 'info');
   };
 
   // ---- Forward contracts ----
@@ -417,8 +426,9 @@ export default function HanksHomestead() {
     gs.day++;
     const nextSeason = seasonForDay(gs.day);
 
+    const scorcher = nextSeason === 'summer' && Math.random() < SCORCH_CHANCE;
     sprinklerTick(nextSeason);
-    growCropsForDay(nextSeason);
+    growCropsForDay(nextSeason, scorcher);
     tickMarket();
     spoilTick();
     tickContracts();
@@ -426,7 +436,11 @@ export default function HanksHomestead() {
     // A plain day within the same season: just advance, light feedback.
     if (nextSeason === currentSeason) {
       sounds.click();
-      showNotification(`${SEASONS[nextSeason].name} — Day ${dayOfSeason(gs.day)} of ${SEASON_LENGTH}`, 'info');
+      if (scorcher) {
+        showNotification(`🔥 Scorcher! The soil's drying fast — check your crops.`, 'error');
+      } else {
+        showNotification(`${SEASONS[nextSeason].name} — Day ${dayOfSeason(gs.day)} of ${SEASON_LENGTH}`, 'info');
+      }
       requestRender();
       return;
     }
@@ -825,6 +839,15 @@ export default function HanksHomestead() {
           return;
         }
       }
+      if (actionType === 'clean' && gs.gold < FEED_COST) {
+        gs.isAutoActing = false;
+        gs.autoActionQueue = [];
+        gs.pendingActionType = null;
+        sounds.error();
+        showNotification(`Out of gold for plant food (${FEED_COST}g each)!`, 'error');
+        requestRender();
+        return;
+      }
 
       const sf = speedFactor(gs.upgrades);
       const timer = setTimeout(() => {
@@ -848,7 +871,8 @@ export default function HanksHomestead() {
             sounds.water();
           }
         } else if (actionType === 'clean') {
-          if (cell.crop && !cell.fed) {
+          if (cell.crop && !cell.fed && gs.gold >= FEED_COST) {
+            gs.gold -= FEED_COST;
             gs.grid[next.y][next.x].fed = true;
             sounds.water();
           }

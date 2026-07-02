@@ -99,7 +99,16 @@ Builds on Epic 9 — borrow capital to invest now, pay it back with interest. Ve
 
 ### Cross-cutting
 - [ ] **(P1) Save/Load lands early** — state is about to grow a lot and longer games need persistence
-- [ ] Ongoing economy / balance tuning
+- [x] **Balance pass v1 (sim-tuned)** — feed costs gold (12g, so +1 yield is a
+  unit-economics call and withering burns real money); crops retuned into
+  niches (wheat = spring-peak carry, carrot = low-risk budget, tomato = best
+  per-gold fall cash, corn = second carry crop with real spoilage cost,
+  pumpkin = per-tile king gated by capital + thirst); random summer scorcher
+  days (30%, extra soil drying) make the watering cadence a decision and give
+  sprinklers genuine insurance value; sprinklers only water thirsty tiles
+  (moisture < 2) instead of burning OpEx re-watering wet soil
+- [ ] Ongoing economy / balance tuning (next: upgrade price curve vs income,
+  contract premiums vs seasonal cycle, year-end P&L as score)
 
 ---
 
