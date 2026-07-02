@@ -183,7 +183,8 @@
   color: var(--ink);
 }
 .shop-row .shop-icon { font-size: 15px; }
-.shop-row .shop-name { flex: 1; font-weight: 600; }
+.shop-row .shop-name { flex: 1; font-weight: 600; display: flex; flex-direction: column; line-height: 1.15; }
+.shop-stats { font-size: 10px; font-weight: 600; color: var(--ink-soft); }
 .shop-row .shop-price { color: var(--ink-soft); font-size: 12px; }
 .shop-row button { width: 30px; height: 24px; border-radius: 8px; font-size: 11px; }
 .shop-row button:disabled {
@@ -363,6 +364,15 @@
 }
 .action-icon { font-size: 26px; line-height: 1; }
 .action-name { font-size: 10px; font-weight: 700; letter-spacing: 0.3px; }
+.action-cost {
+  position: absolute;
+  bottom: 2px;
+  right: 5px;
+  font-size: 9px;
+  font-weight: 700;
+  color: #ffe0a3;
+  opacity: 0.9;
+}
 .keybind {
   position: absolute;
   top: 3px;
@@ -524,6 +534,7 @@
 .modal-row.empty { opacity: 0.45; cursor: default; }
 .mr-icon { font-size: 21px; }
 .mr-name { font-weight: 700; display: flex; flex-direction: column; gap: 1px; }
+.mr-shelf { font-size: 9px; font-weight: 600; color: var(--ink-soft); }
 .sparkline { display: block; opacity: 0.85; }
 .mr-count { color: var(--ink-soft); text-align: center; }
 .mr-price { color: var(--ink); font-size: 12px; text-align: right; font-weight: 700; display: flex; flex-direction: column; line-height: 1.1; }
@@ -755,6 +766,8 @@
 }
 .tc-ico { font-size: 24px; line-height: 1; }
 .tc-name { font-size: 11px; }
+.tc-cost { font-size: 9px; font-weight: 700; color: #9a6a16; opacity: 0.95; }
+.tc-action.active .tc-cost { color: #ffe0a3; }
 .tc-seed {
   position: absolute;
   bottom: -3px;

@@ -252,7 +252,7 @@ export default function HanksHomestead() {
         const cell = gs.grid[y][x];
         if (!cell.crop || cell.growth >= CROPS[cell.crop].growTime) continue;
         if (season === 'spring') {
-          cell.moisture = Math.max(cell.moisture, 2); // spring showers
+          cell.moisture = Math.max(cell.moisture || 0, 2); // spring showers (|| 0 heals pre-moisture saves)
           cell.watered = true;
           cell.growth++;
         } else {
@@ -427,6 +427,7 @@ export default function HanksHomestead() {
     const nextSeason = seasonForDay(gs.day);
 
     const scorcher = nextSeason === 'summer' && Math.random() < SCORCH_CHANCE;
+    gs.scorchDay = scorcher ? gs.day : null; // scene renders a heat-wave look today
     sprinklerTick(nextSeason);
     growCropsForDay(nextSeason, scorcher);
     tickMarket();
@@ -457,7 +458,7 @@ export default function HanksHomestead() {
       sounds.sleep();
       setTimeout(() => {
         sounds.wake();
-        showSpeech("Whoo-wee, it's gettin' hot! Keep them crops watered or they'll wither!", 4000);
+        showSpeech("Whoo-wee, it's gettin' hot! Keep 'em watered — and watch for scorchers, they dry the soil double-quick!", 4500);
       }, 500);
     } else if (currentSeason === 'summer' && nextSeason === 'fall') {
       sounds.sleep();

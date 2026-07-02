@@ -1,5 +1,5 @@
 import React from 'react';
-import { CROPS, SEASONS, SEASON_ACTIONS, seasonForDay, yearForDay, dayOfSeason, SEASON_LENGTH, storedTotal, UPGRADES, upgradeCost } from '../game/constants.js';
+import { CROPS, FEED_COST, SEASONS, SEASON_ACTIONS, seasonForDay, yearForDay, dayOfSeason, SEASON_LENGTH, storedTotal, UPGRADES, upgradeCost } from '../game/constants.js';
 import { storageCapacity } from '../game/logic.js';
 import './hud.css';
 
@@ -88,7 +88,12 @@ export default function Hud({ gs, actions }) {
             {cropEntries.map(([id, c]) => (
               <div className="shop-row" key={id}>
                 <span className="shop-icon">{c.icon}</span>
-                <span className="shop-name">{c.name}</span>
+                <span className="shop-name">
+                  {c.name}
+                  <small className="shop-stats">
+                    sells ~{c.sellPrice}g · {c.shelfLife >= 999 ? 'keeps ∞' : `keeps ~${c.shelfLife}d`} · 💧×{Math.max(0, c.growTime - 5)}
+                  </small>
+                </span>
                 <span className="shop-price">{c.seedPrice}g</span>
                 <button disabled={gs.gold < c.seedPrice} onClick={() => actions.buySeeds(id, 1)}>+1</button>
                 <button disabled={gs.gold < c.seedPrice * 5} onClick={() => actions.buySeeds(id, 5)}>+5</button>
@@ -177,6 +182,7 @@ export default function Hud({ gs, actions }) {
             <span className="keybind">{i + 1}</span>
             <span className="action-icon">{a.icon}</span>
             <span className="action-name">{a.name}</span>
+            {a.id === 'clean' && <span className="action-cost">−{FEED_COST}g</span>}
           </button>
         ))}
       </div>
@@ -253,6 +259,7 @@ function TouchControls({ gs, actions, actionList, curAction, cropEntries }) {
               >
                 <span className="tc-ico">{a.icon}</span>
                 <span className="tc-name">{a.name}</span>
+                {a.id === 'clean' && <span className="tc-cost">−{FEED_COST}g</span>}
               </button>
             ))}
           </div>
@@ -392,6 +399,7 @@ function SellModal({ gs, actions }) {
                 <span className="mr-name">
                   {c.name}
                   <Sparkline data={hist} />
+                  <small className="mr-shelf">{c.shelfLife >= 999 ? 'keeps forever' : `spoils in ~${c.shelfLife}d`}</small>
                 </span>
                 <span className="mr-count">×{count}</span>
                 <span className={`mr-price ${trendCls}`}>

@@ -119,9 +119,10 @@ function Crop({ cell }) {
           <meshStandardMaterial color={COLORS.ui.green} emissive={COLORS.ui.green} emissiveIntensity={0.6} />
         </mesh>
       )}
-      {/* watered / fed status pips */}
+      {/* watered / fed / withered status pips */}
       {!mature && cell.watered && <StatusPip color={COLORS.ui.blue} x={-0.28} />}
       {!mature && cell.fed && <StatusPip color="#A78BFA" x={0.28} />}
+      {cell.harvestPenalty && <StatusPip color="#F97316" x={0} />}
     </group>
   );
 }
@@ -138,9 +139,13 @@ function StatusPip({ color, x }) {
 // ============================================
 // FIELD TILE (visual only — interaction handled by FieldPlane below)
 // ============================================
+// Soil tint follows the moisture level so drying tiles are readable at a
+// glance: wet (2+) → drying (1) → parched (0).
+const soilColor = (cell) =>
+  cell.moisture >= 2 ? COLORS.soil.wet : cell.moisture === 1 ? '#77512E' : COLORS.soil.dry;
+
 function Tile({ x, y, cell, hovered, selected }) {
-  const baseColor = cell.watered ? COLORS.soil.wet : COLORS.soil.dry;
-  const color = selected && !cell.crop ? '#3B82F6' : baseColor;
+  const color = selected && !cell.crop ? '#3B82F6' : soilColor(cell);
 
   return (
     <group position={[gx(x), 0, gz(y)]}>
@@ -863,17 +868,17 @@ function Farmer({ gs }) {
 // ============================================
 // LIGHTING (tinted per season)
 // ============================================
-function SeasonLighting({ season, shadowMap = 2048 }) {
+function SeasonLighting({ season, shadowMap = 2048, scorch = false }) {
   const data = SEASONS[season];
   const dirRef = useRef();
   return (
     <>
-      <hemisphereLight args={[data.sky.top, data.grass, 0.7]} />
+      <hemisphereLight args={[scorch ? '#FFD9A0' : data.sky.top, data.grass, 0.7]} />
       <ambientLight intensity={0.35} />
       <directionalLight
         ref={dirRef}
-        color={data.light}
-        intensity={1.15}
+        color={scorch ? '#FFC46B' : data.light}
+        intensity={scorch ? 1.45 : 1.15}
         position={[12, 20, 8]}
         castShadow
         shadow-mapSize-width={shadowMap}
@@ -948,7 +953,7 @@ export default function FarmScene({ gs, version, onTilePointerDown, onTilePointe
       />
       {lowSpec && <CameraRig gs={gs} />}
 
-      <SeasonLighting season={season} shadowMap={lowSpec ? 1024 : 2048} />
+      <SeasonLighting season={season} shadowMap={lowSpec ? 1024 : 2048} scorch={gs.scorchDay === gs.day} />
 
       {/* version is read so the subtree re-renders when game state mutates */}
       <group userData={{ version }}>
