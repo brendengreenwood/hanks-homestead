@@ -113,16 +113,34 @@ describe('buyUpgrade', () => {
     expect(rows.has(FIELD_OFFSET + FIELD_SIZE + 1)).toBe(true);
     buyUpgrade(fw, 'plot');
     expect(count()).toBe(FIELD_SIZE * FIELD_SIZE + 2 * ROWS_PER_PLOT * FIELD_SIZE);
-    expect(rows.size).toBe(FIELD_SIZE + ROWS_PER_PLOT); // snapshot before second buy
+    // Fresh snapshot: exactly the contiguous grid rows, no duplicates/gaps.
+    const rowsAfter = new Set(
+      [...fw.world.query(fw.components.Tile)].map(
+        (e) => fw.world.get(e, fw.components.Tile)!.gridY,
+      ),
+    );
+    expect(rowsAfter.size).toBe(FIELD_SIZE + 2 * ROWS_PER_PLOT);
+    for (let gy = FIELD_OFFSET; gy < FIELD_OFFSET + FIELD_SIZE + 2 * ROWS_PER_PLOT; gy++) {
+      expect(rowsAfter.has(gy)).toBe(true);
+    }
   });
 });
 
 describe('toggleSprinkler', () => {
-  it('flips the master switch', () => {
+  it('rejects toggling before the sprinkler upgrade is owned', () => {
     const fw = createFarmWorld();
-    expect(toggleSprinkler(fw)).toBe(true);
-    expect(farmOf(fw).sprinklerOn).toBe(true);
     expect(toggleSprinkler(fw)).toBe(false);
+    expect(farmOf(fw).sprinklerOn).toBe(false);
+  });
+
+  it('flips the master switch once owned', () => {
+    const fw = createFarmWorld();
+    const farm = farmOf(fw);
+    farm.gold = 1000;
+    buyUpgrade(fw, 'sprinkler'); // also switches it on
+    expect(farm.sprinklerOn).toBe(true);
+    expect(toggleSprinkler(fw)).toBe(false);
+    expect(toggleSprinkler(fw)).toBe(true);
   });
 });
 
@@ -169,5 +187,25 @@ describe('shop purchases', () => {
     expect(farm.seeds.tomato).toBe(12);
     farm.gold = 0;
     expect(buySeeds(fw, 'pumpkin', 1).ok).toBe(false);
+  });
+});
+
+describe('automation chain through endDay', () => {
+  it('sprinkler waters before growth, charges OpEx, and the crop advances', () => {
+    const fw = createFarmWorld(42);
+    const farm = farmOf(fw);
+    const tile = [...fw.world.query(fw.components.Tile)][0];
+    plant(fw, tile, 'corn');
+    farm.gold = 1000;
+    buyUpgrade(fw, 'sprinkler'); // switches sprinklerOn true
+    advanceToSeason(fw, 'summer');
+    const goldBefore = farm.gold;
+    const growthBefore = fw.world.get(tile, fw.components.Crop)!.growth;
+    const report = fw.endDay();
+    expect(report.sprinkler.watered).toBeGreaterThan(0);
+    expect(report.sprinkler.cost).toBe(report.sprinkler.watered);
+    expect(farm.gold).toBe(goldBefore - report.sprinkler.cost);
+    // Watered before the growth tick → the crop grew this day.
+    expect(fw.world.get(tile, fw.components.Crop)!.growth).toBe(growthBefore + 1);
   });
 });

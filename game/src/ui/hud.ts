@@ -145,7 +145,7 @@ export class Hud {
     const messages: string[] = [];
     if (report.sprinkler.cost > 0) messages.push(`Sprinklers watered ${report.sprinkler.watered} tiles for ${report.sprinkler.cost} gold.`);
     if (report.sprinkler.switchedOff) messages.push('Sprinklers switched off: not enough gold.');
-    if (report.scorcher) messages.push('Scorcher day: dry crops took damage.');
+    if (report.scorcher) messages.push("Scorcher day: the soil's drying fast.");
     if (messages.length > 0) this.showMessage(messages.join(' '));
   }
 

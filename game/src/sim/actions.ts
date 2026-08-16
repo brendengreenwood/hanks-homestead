@@ -154,6 +154,7 @@ export function buyUpgrade(fw: FarmWorld, key: UpgradeId): ActionResult {
 /** Toggle the sprinkler master switch (legacy `toggleSprinkler`). */
 export function toggleSprinkler(fw: FarmWorld): boolean {
   const farm = fw.world.get(fw.farm, fw.components.Farm)!;
+  if (farm.upgrades.sprinkler <= 0) return false;
   farm.sprinklerOn = !farm.sprinklerOn;
   return farm.sprinklerOn;
 }
