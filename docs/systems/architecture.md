@@ -1,4 +1,8 @@
-# Architecture (active state)
+# Architecture (legacy JS app — see `rewrite-omen.md` for the active rewrite)
+
+> This page describes the frozen legacy app in `src/`. The TypeScript
+> rewrite on the omen engine (D-018) is documented in
+> `docs/systems/rewrite-omen.md`.
 
 ## State model
 - All game state lives in **`gameState.current`** (a ref) in `src/Game.jsx`.

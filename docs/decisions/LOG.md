@@ -142,3 +142,6 @@ override). Fed = 12% lusher; withered = drooping/shrunken; mature = pristine
 bloom + golden Sparkles. Stage URLs preloaded. **Why:** user direction; orbs
 were UI noise in the world, and the kit ships real stage props (mirror-fetched
 corn B/C; melon + turnip downloaded for future crops).
+
+## D-018 * 2026-08-16 * Rewrite on the vendored omen ECS engine (TypeScript workspace)
+**What:** Repo converted to a pnpm workspace: `packages/engine` (omen, copied verbatim from om-game and intentionally forked) + `game/` (TS rewrite). Sim rebuilt as ECS systems (Calendar/Weather/Growth/Soil) with seeded RNG and vitest parity tests on the legacy balance constants; presentation rendered through the engine Renderer/Loop (raw three.js) with the Kenney registry ported verbatim; DOM HUD with data-testids; playwright browser gates drive real UI (manual era: plant/water/harvest shipped first). Legacy `src/` frozen as reference until parity. **Why:** full adoption of the om-game pattern; the legacy mutable-ref architecture had zero test coverage, so a rebuilt ECS sim core is what makes the unit gates meaningful. **Rejected:** hosting the game inside the om-game workspace (repo lineage preferred); incremental TS-ification without ECS.
