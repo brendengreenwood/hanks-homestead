@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { Loop } from 'omen/core/Loop';
 import { createRenderer } from 'omen/core/Renderer';
-import { CAMERA_FAR, CAMERA_NEAR, CAMERA_POSITION, CAMERA_ZOOM } from './constants';
+import { CAMERA_FAR, CAMERA_NEAR, CAMERA_POSITION, CAMERA_ZOOM, gridToWorld } from './constants';
 import { createFarmWorld } from './sim/world';
 import { plant, water, feed, harvest } from './sim/actions';
 import { FarmScene } from './scene/FarmScene';
@@ -11,6 +11,8 @@ declare global {
   interface Window {
     __THREE_GAME_DIAGNOSTICS__?: {
       frame: number;
+      /** Grid → CSS-pixel canvas coords, so proof flows can aim real clicks. */
+      worldToScreen?: (gridX: number, gridY: number) => { x: number; y: number };
     };
   }
 }
@@ -91,7 +93,18 @@ canvas.addEventListener('pointerdown', (ev) => {
   refresh();
 });
 
-const diagnostics = { frame: 0 };
+const diagnostics = {
+  frame: 0,
+  worldToScreen(gridX: number, gridY: number): { x: number; y: number } {
+    const [wx, wz] = gridToWorld(gridX, gridY);
+    const p = new THREE.Vector3(wx, 0, wz).project(camera);
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: rect.left + ((p.x + 1) / 2) * rect.width,
+      y: rect.top + ((1 - p.y) / 2) * rect.height,
+    };
+  },
+};
 window.__THREE_GAME_DIAGNOSTICS__ = diagnostics;
 
 const loop = new Loop(
