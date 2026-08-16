@@ -7,3 +7,6 @@ dist
 
 # Source audio files (originals from Splice)
 /music/
+
+# Session planning/proof artifacts (never committed)
+.mastracode/
