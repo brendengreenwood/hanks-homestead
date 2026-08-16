@@ -1,10 +1,9 @@
 # Rewrite on the omen engine (active state)
 
-> The game is being rewritten in TypeScript on the vendored **omen** ECS
-> engine (`packages/engine`, forked from om-game by decision D-018). The
-> legacy JS app in `src/` is frozen as a porting reference until the rewrite
-> reaches parity; the pages describing it (`architecture.md`, `farm-loop.md`,
-> etc.) remain the legacy record and will be archived when `src/` retires.
+> The game is written in TypeScript on the vendored **omen** ECS engine
+> (`packages/engine`, forked from om-game by decision D-018). The legacy JS
+> app was retired at market-era parity (D-020); the pages describing it live
+> in `docs/archive/`. This page is the active architecture record.
 
 ## Workspace
 
@@ -72,9 +71,41 @@
   sprinkler ON/OFF toggle (visible once owned), day-report messages.
 - FarmScene creates soil meshes lazily so plot-expansion rows render/pick.
 
-## Not yet ported (later segments)
+## Market era (segment 5)
 
-- Market era: dynamic prices, elevator intake cap, selling, spoilage,
-  forward contracts (segment 5).
-- Out of rewrite parity: audio engine, mobile touch HUD, farmer avatar +
-  job queue presentation (follow-ups).
+- `MarketSystem` (runs in `endDay` after growth, matching legacy order):
+  mean-reversion toward the seasonal target (`seasonalPriceFactor`, cosine
+  wave — peaks in spring, bottoms in fall) with ±6% noise from the seeded
+  RNG, clamped to 40–190% of `sellPrice`; `PRICE_HISTORY_LEN` 24 days kept
+  for the chart. Selling applies market impact — price drops
+  `min(25%, qty × 0.4%)` with a 40% floor — and revenue is the average of
+  pre-/post-impact price. Spoilage: perishables lose
+  `ceil(count / shelfLife)` per day.
+- Grain elevator cap: daily intake `ELEVATOR_BASE_INTAKE` 25 +
+  hauler × 15; `soldToday` resets each morning. Contract deliveries settle
+  **outside** the cap (legacy parity).
+- `ContractSystem`: keeps `CONTRACT_SLOTS` 3 offers (crop random, price
+  108–130% of `sellPrice`, qty 8–25, due 6–18 days out, all from the seeded
+  RNG); offers refresh each season. At the due day a contract settles —
+  delivers from storage for `qty × locked price`, or forfeits
+  `CONTRACT_PENALTY` 25% of contract value if stock is short.
+- Actions: **sell** / **sellAll** (highest price first, fills remaining
+  intake), **acceptContract**.
+- HUD: market panel (prices, price history, sell buttons, elevator room
+  readout), contracts panel (offers + active contracts with due dates),
+  day-report lines for spoilage and contract settlements.
+- Proof flows (`market-era.spec.ts`, seed 42): sell-cycle with elevator cap,
+  contract accept → deliver → payout `qty × locked price`, and the A-001
+  deferred sprinkler proof — earn gold by selling, buy the sprinkler through
+  the shop, verify auto-watering + OpEx via real UI.
+
+## Legacy retirement (D-020)
+
+- The React/r3f app (`src/`, root `public/`, root `index.html`,
+  `vite.config.js`, `package-lock.json`) is deleted; root scripts delegate
+  to the workspace (`pnpm dev|build|test:unit|test:e2e|check`). Netlify
+  builds `game/` and publishes `game/dist`.
+
+## Out of rewrite parity (follow-ups)
+
+- Audio engine, mobile touch HUD, farmer avatar + job queue presentation.

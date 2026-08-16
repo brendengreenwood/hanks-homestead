@@ -1,69 +1,58 @@
 # Hank's Homestead 🌾
 
-An isometric farming game built with **React + three.js** ([@react-three/fiber](https://docs.pmnd.rs/react-three-fiber)),
-with low-poly art from the CC0 [Kenney Nature Kit](https://kenney.nl/assets/nature-kit).
-Grow crops through the seasons, sell your harvest, and build up the homestead.
+An isometric farming game written in **TypeScript** on the vendored **omen ECS
+engine** (raw three.js), with low-poly art from the CC0
+[Kenney Nature Kit](https://kenney.nl/assets/nature-kit).
+Grow crops through the seasons, play the grain market, and build up the
+homestead.
 
 ## Quick Start
 
 ```bash
-npm install
-npm run dev      # http://localhost:5173
-npm run build
+pnpm install
+pnpm dev         # http://localhost:5173  (append ?seed=42 for a deterministic run)
+pnpm build
+pnpm test:unit   # vitest (engine + game sim)
+pnpm test:e2e    # playwright browser gates
+pnpm check       # tsc --noEmit
 ```
 
 ## Controls
 
-**Desktop**
-
 | Input | Action |
 |-------|--------|
-| Left-click / drag on the field | Select tiles to plant/water/harvest (Hank auto-walks there) |
-| Right-drag | Orbit the camera |
-| Scroll | Zoom |
-| WASD / Arrows | Move Hank |
-| E | Act on the current tile |
-| 1–4 | Select the season's action |
-| Escape | Cancel / close panels |
-
-**Mobile (touch)**
-
-| Input | Action |
-|-------|--------|
-| Tap / drag on the field | Act on tiles |
-| Two-finger drag | Orbit the camera |
-| Pinch | Zoom |
-| On-screen D-pad | Move Hank |
-| On-screen Act button | Act on the current tile |
+| Left-click on the field | Apply the selected tool (plant / water / feed / harvest) |
+| Tool + crop buttons (HUD) | Choose action and crop |
+| End day (HUD) | Advance the calendar |
+| Shop / Market / Contracts (HUD) | Buy supplies and upgrades, sell crops, take forward contracts |
 
 ## Game Loop
 
-Seasons cycle Spring → Summer → Fall → Winter: plant in spring, water/feed in
-summer, harvest in fall, sell at the winter market. (A larger "farm economy"
-overhaul — longer seasons, storage, dynamic markets, progression — is planned;
-see `BACKLOG.md`.)
+Seasons cycle Spring → Summer → Fall → Winter (6 days each): plant in spring,
+water/feed in summer (watch for scorchers), harvest in fall, and sell into a
+mean-reverting market with a daily elevator intake cap. Automate with
+sprinklers and upgrades (CapEx/OpEx), and lock in prices with forward
+contracts.
 
 ## Project Structure
 
 ```
-src/
-├── Game.jsx              # Orchestrator: gameState ref, actions, input, effects
-├── three/FarmScene.jsx   # r3f <Canvas>: world, camera, lighting, meshes
-├── ui/Hud.jsx + hud.css  # HTML overlay UI (cozy farmstead theme)
-├── game/constants.js     # CROPS, BUILDINGS, SEASONS, grid sizes
-├── game/logic.js         # A* pathfinding, farmland/walkable, snake-queue
-├── game/assets.js        # Kenney model registry + farmer config
-└── hooks/useAudio.js     # sound / music / ambience
-public/models/            # GLB assets (nature-kit + character)
+packages/engine/          # omen ECS engine (vendored fork of om-game)
+game/
+├── src/main.ts           # Boot: renderer, loop, world, scene, HUD wiring
+├── src/sim/              # ECS sim: constants, components, systems, actions
+├── src/scene/FarmScene.ts# three.js scene: ground, tiles, crops, decorations
+├── src/ui/hud.ts         # DOM overlay UI
+├── src/assets.ts         # Kenney model registry
+├── tests/                # Playwright browser specs
+└── public/models/        # GLB assets (nature-kit)
 ```
 
-See `CLAUDE.md` for architecture notes and `BACKLOG.md` for the roadmap.
+See `CLAUDE.md` for architecture notes, `docs/systems/rewrite-omen.md` for the
+active systems record, and `BACKLOG.md` for the roadmap.
 
 ## Deploying
 
 Hosted on **Netlify** (`hanks-homestead.netlify.app`) with **continuous
-deployment from `main`** — pushing to `main` triggers a build + deploy.
-
-Note: the Claude Code sandbox can't deploy directly (its outbound proxy blocks
-`api.netlify.com`), so deploys happen via Netlify's GitHub integration on push,
-or manually from the Netlify dashboard (**Deploys → Trigger deploy**).
+deployment from `main`** — pushing to `main` triggers a build + deploy
+(`pnpm --filter game build`, publishes `game/dist`).
