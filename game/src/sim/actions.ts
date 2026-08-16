@@ -54,6 +54,7 @@ export function water(fw: FarmWorld, tile: EntityId): ActionResult {
   const t = world.get(tile, components.Tile);
   if (!t) return fail('Not farmland.');
   if (!world.has(tile, components.Crop)) return fail('Nothing planted here.');
+  if (t.watered) return fail('Already watered.');
   t.moisture = WATER_DAYS;
   t.watered = true;
   return ok;
@@ -62,7 +63,8 @@ export function water(fw: FarmWorld, tile: EntityId): ActionResult {
 /**
  * Harvest a mature crop into the silo. Legacy rules: fall only, requires
  * growth >= growTime; yield 1 if withered, else 2 if fed, else 1; blocked
- * when the silo lacks room for the full yield.
+ * only when the silo has no room at all — a partial yield is clamped to the
+ * remaining space (legacy Game.jsx stores `min(harvestAmount, space)`).
  */
 export function harvest(fw: FarmWorld, tile: EntityId): ActionResult {
   const { world, components } = fw;
@@ -72,10 +74,10 @@ export function harvest(fw: FarmWorld, tile: EntityId): ActionResult {
   if (!crop) return fail('Nothing planted here.');
   if (crop.growth < CROPS[crop.crop].growTime) return fail('Not mature yet.');
   const farm = world.get(fw.farm, components.Farm)!;
+  const space = storageCapacity(farm.silos) - storedTotal(farm.storage);
+  if (space <= 0) return fail('Silo is full.');
   const yield_ = crop.harvestPenalty ? 1 : crop.fed ? 2 : 1;
-  const capacity = storageCapacity(farm.silos);
-  if (storedTotal(farm.storage) + yield_ > capacity) return fail('Silo is full.');
-  farm.storage[crop.crop] += yield_;
+  farm.storage[crop.crop] += Math.min(yield_, space);
   world.remove(tile, components.Crop);
   return ok;
 }

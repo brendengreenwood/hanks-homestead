@@ -46,16 +46,36 @@ describe('plant', () => {
   });
 });
 
+/** Advance until the tile's spring moisture has drained (watered=false). */
+function drainTile(fw: FarmWorld, tile: EntityId): void {
+  let guard = 0;
+  while (fw.world.get(tile, fw.components.Tile)!.watered) {
+    fw.endDay();
+    if (++guard > 10) throw new Error('tile never dried');
+  }
+}
+
 describe('water', () => {
   it('sets moisture to WATER_DAYS in summer', () => {
     const fw = createFarmWorld();
     const tile = firstTile(fw);
-    plant(fw, tile, 'wheat');
+    plant(fw, tile, 'corn'); // growTime 9 — still growing in summer
     advanceToSeason(fw, 'summer');
+    drainTile(fw, tile);
     expect(water(fw, tile).ok).toBe(true);
     const t = fw.world.get(tile, fw.components.Tile)!;
     expect(t.moisture).toBe(WATER_DAYS);
     expect(t.watered).toBe(true);
+  });
+
+  it('rejects an already-watered tile (legacy !cell.watered guard)', () => {
+    const fw = createFarmWorld();
+    const tile = firstTile(fw);
+    plant(fw, tile, 'corn');
+    advanceToSeason(fw, 'summer');
+    drainTile(fw, tile); // spring rain leaves the tile watered
+    expect(water(fw, tile).ok).toBe(true);
+    expect(water(fw, tile).ok).toBe(false);
   });
 
   it('rejects out-of-season and unplanted tiles', () => {
@@ -116,6 +136,22 @@ describe('harvest', () => {
     crop.growth = CROPS.wheat.growTime;
     farm.storage.corn = storageCapacity(farm.silos);
     expect(harvest(fw, tile).ok).toBe(false); // full
+    expect(storedTotal(farm.storage)).toBe(storageCapacity(farm.silos));
+  });
+
+  it('clamps a fed yield of 2 to the last remaining storage slot', () => {
+    const fw = createFarmWorld();
+    const tile = firstTile(fw);
+    plant(fw, tile, 'wheat');
+    const crop = fw.world.get(tile, fw.components.Crop)!;
+    crop.growth = CROPS.wheat.growTime;
+    crop.fed = true;
+    advanceToSeason(fw, 'fall');
+    const farm = farmOf(fw);
+    farm.storage.corn = storageCapacity(farm.silos) - 1; // exactly one slot left
+    expect(harvest(fw, tile).ok).toBe(true);
+    expect(farm.storage.wheat).toBe(1); // min(2, 1)
+    expect(fw.world.has(tile, fw.components.Crop)).toBe(false);
     expect(storedTotal(farm.storage)).toBe(storageCapacity(farm.silos));
   });
 
