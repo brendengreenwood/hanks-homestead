@@ -53,6 +53,18 @@
   select, **End day**, gold/date/storage readouts, seed inventory. All
   controls carry `data-testid`s so playwright proof flows drive the exact
   controls a human clicks.
+- `scene/props.ts` (D-021) — legacy procedural props ported: barn / house
+  (with recycling chimney-smoke puffs) / silo at the legacy grid placements,
+  five barnyard chickens (wander `YARD_R` 1.9 around home {-7.2, -1.0}, flee
+  when Hank is within 2.3), and Hank himself — Kenney
+  `character-male-a.glb` (scale 1.4) with a straw hat and pitchfork attached
+  to the `head` / `arm-right` bones, walk/idle crossfade, a one-shot
+  `interact-right` gesture on tile actions, and an eased glide to the
+  clicked tile; a procedural farmer stands in if the GLB fails. Animated in
+  `FarmScene.update(dt)` off the engine Loop's delta. The GLB's missing
+  `colormap.png` resolves to a 1×1 white pixel via `LoadingManager` so boot
+  is console-clean. Mouse-wheel zoom scales the ortho frustum (12–70,
+  legacy OrbitControls bounds).
 
 ## Automation era (segment 4)
 

@@ -28,6 +28,19 @@ const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, CAMERA_NEAR, CAMERA_FA
 camera.position.set(...CAMERA_POSITION);
 camera.lookAt(0, 0, 0);
 
+// Wheel zoom — legacy OrbitControls bounds (minZoom 12, maxZoom 70, base 26).
+let zoom = CAMERA_ZOOM;
+let zoomDirty = false;
+canvas.addEventListener(
+  'wheel',
+  (ev) => {
+    ev.preventDefault();
+    zoom = Math.min(70, Math.max(12, zoom * Math.exp(-ev.deltaY * 0.0015)));
+    zoomDirty = true;
+  },
+  { passive: false },
+);
+
 function resize(): boolean {
   const width = Math.max(1, Math.floor(canvas.clientWidth));
   const height = Math.max(1, Math.floor(canvas.clientHeight));
@@ -37,10 +50,13 @@ function resize(): boolean {
   if (needsResize) {
     renderer.setPixelRatio(dpr);
     renderer.setSize(width, height, false);
-    camera.left = -width / CAMERA_ZOOM / 2;
-    camera.right = width / CAMERA_ZOOM / 2;
-    camera.top = height / CAMERA_ZOOM / 2;
-    camera.bottom = -height / CAMERA_ZOOM / 2;
+  }
+  if (needsResize || zoomDirty) {
+    zoomDirty = false;
+    camera.left = -width / zoom / 2;
+    camera.right = width / zoom / 2;
+    camera.top = height / zoom / 2;
+    camera.bottom = -height / zoom / 2;
     camera.updateProjectionMatrix();
   }
   return needsResize;
@@ -81,6 +97,7 @@ canvas.addEventListener('pointerdown', (ev) => {
   );
   const tile = farmScene.pickTile(ndc, camera);
   if (tile === null) return;
+  farmScene.notifyAction(tile); // Hank walks over + interact gesture
   const result =
     hud.tool === 'plant'
       ? plant(fw, tile, hud.selectedCrop)
@@ -108,8 +125,9 @@ const diagnostics = {
 window.__THREE_GAME_DIAGNOSTICS__ = diagnostics;
 
 const loop = new Loop(
-  () => {
+  (dt) => {
     resize();
+    farmScene.update(dt);
   },
   () => {
     renderer.render(scene, camera);
