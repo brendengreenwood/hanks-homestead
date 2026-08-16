@@ -35,6 +35,14 @@ export interface Weather {
 /** Singleton farm-wide state. */
 export interface Farm {
   gold: number;
+  /** Seed inventory per crop (legacy `inventory.<crop>_seeds`). */
+  seeds: Record<CropId, number>;
+  /** Plant-food consumables (legacy `inventory.plant_food`). */
+  plantFood: number;
+  /** Harvested crops in the silo (legacy `storage`). */
+  storage: Record<CropId, number>;
+  /** Silo count driving capacity: BASE_STORAGE + silos × SILO_CAPACITY. */
+  silos: number;
 }
 
 export interface SimComponents {

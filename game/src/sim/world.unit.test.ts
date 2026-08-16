@@ -34,7 +34,13 @@ describe('createFarmWorld', () => {
     const fw = createFarmWorld();
     const farm = fw.world.findByName(FARM_ENTITY_NAME);
     expect(farm).toBe(fw.farm);
-    expect(fw.world.get(fw.farm, fw.components.Farm)).toEqual({ gold: 200 });
+    expect(fw.world.get(fw.farm, fw.components.Farm)).toEqual({
+      gold: 200,
+      seeds: { wheat: 10, carrot: 10, tomato: 10, corn: 10, pumpkin: 10 },
+      plantFood: 5,
+      storage: { wheat: 0, carrot: 0, tomato: 0, corn: 0, pumpkin: 0 },
+      silos: 1,
+    });
   });
 
   it('endDay is deterministic for a given seed', () => {
