@@ -23,8 +23,9 @@
 - `createFarmWorld(seed)` (`sim/world.ts`) spawns 100 Tile entities and the
   Farm/Calendar/Weather singletons on the engine `World`. Seeded mulberry32
   RNG; `?seed=` URL param pins runs for reproducible proofs.
-- Day tick (`endDay()`): Calendar → Weather (scorcher roll) → Growth → Soil,
-  matching the legacy day-tick order.
+- Day tick (`endDay()`): Calendar → Weather (scorcher roll) → Sprinkler →
+  Growth → Soil → Market (price tick, spoilage, intake reset) → Contracts
+  (settlement), matching the legacy day-tick order.
 - Components: `Tile` (moisture, watered), `Crop` (crop, growth, fed,
   harvestPenalty), `Weather` (scorcher), `Farm` (gold 200, 10 seeds/crop,
   5 plant food, storage, silos=1 → capacity 100).
@@ -34,8 +35,8 @@
 - **plant** — spring-only, consumes a seed, adds a `Crop` at growth 0.
 - **water** — summer-only, sets moisture to `WATER_DAYS`, marks soil watered.
 - **harvest** — fall-only, requires `growth ≥ growTime`; yield 1 withered /
-  2 fed / 1 otherwise; blocked when the silo lacks room
-  (`BASE_STORAGE + silos × SILO_CAPACITY`).
+  2 fed / 1 otherwise; stores `min(yield, space)` and only blocks when
+  storage (`BASE_STORAGE + silos × SILO_CAPACITY`) is completely full.
 - All actions return `{ok, message}`; failures surface as HUD toasts.
 
 ## Presentation
