@@ -2,6 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { createFarmWorld, type FarmWorld } from './world';
 import { CROPS, SEASON_LENGTH, WATER_DAYS, type CropId } from './constants';
 import type { EntityId } from 'omen/ecs/types';
+import { World } from 'omen/ecs/World';
+import { defineSimComponents } from './components';
+import { WeatherSystem } from './WeatherSystem';
+import { GrowthSystem } from './GrowthSystem';
+import { SoilSystem } from './SoilSystem';
 
 function firstTile(fw: FarmWorld): EntityId {
   for (const e of fw.world.query(fw.components.Tile)) return e;
@@ -50,18 +55,38 @@ describe('GrowthSystem', () => {
   });
 
   it('grows a watered crop in summer and dries the soil over WATER_DAYS', () => {
-    const fw = createFarmWorld(7);
-    advanceToSummer(fw);
-    const entity = firstTile(fw);
-    plant(fw, entity, 'tomato');
-    const tile = fw.world.get(entity, fw.components.Tile)!;
-    tile.moisture = WATER_DAYS; // manual watering (action layer arrives in segment 3)
-    tile.watered = true;
-    fw.endDay();
-    const crop = fw.world.get(entity, fw.components.Crop)!;
-    expect(crop.growth).toBe(1);
+    // Scorcher-free rng so drying is exactly -1/day (weather odds already
+    // covered in WeatherSystem.unit.test.ts).
+    const world = new World();
+    const components = defineSimComponents(world);
+    const weather = new WeatherSystem(world, components, () => 1);
+    const growth = new GrowthSystem(world, components);
+    const soil = new SoilSystem(world, components);
+    const entity = world.spawn();
+    world.add(entity, components.Tile, {
+      gridX: 13, gridY: 13, worldX: -4.5, worldZ: -4.5,
+      moisture: WATER_DAYS, watered: true, // manual watering (action layer arrives in segment 3)
+    });
+    world.add(entity, components.Crop, { crop: 'tomato', growth: 0, fed: false, harvestPenalty: false });
+    const tile = world.get(entity, components.Tile)!;
+    const crop = world.get(entity, components.Crop)!;
+    const day = () => {
+      const scorcher = weather.rollDay('summer');
+      growth.runDay('summer');
+      soil.runDay('summer', scorcher);
+    };
+    // Full lifecycle: 3 → 2 → 1 → 0, growing each morning it had moisture.
+    day();
+    expect([crop.growth, tile.moisture, tile.watered]).toEqual([1, 2, true]);
+    day();
+    expect([crop.growth, tile.moisture, tile.watered]).toEqual([2, 1, true]);
+    day();
+    expect([crop.growth, tile.moisture, tile.watered]).toEqual([3, 0, false]);
     expect(crop.harvestPenalty).toBe(false);
-    expect(tile.moisture).toBeLessThan(WATER_DAYS); // dried by at least 1
+    // Day 4: dry morning — no growth, crop withers.
+    day();
+    expect([crop.growth, tile.moisture, tile.watered]).toEqual([3, 0, false]);
+    expect(crop.harvestPenalty).toBe(true);
   });
 
   it('does not grow crops in fall or winter', () => {
