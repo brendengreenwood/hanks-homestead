@@ -4,11 +4,13 @@
   "description": "Isometric farming game on the omen ECS engine",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@10.27.0",
   "scripts": {
     "dev": "pnpm --filter game dev",
     "build": "pnpm --filter game build",
     "preview": "pnpm --filter game preview",
     "test:unit": "pnpm -r test:unit",
+    "test:e2e": "pnpm --filter game exec playwright test",
     "check": "pnpm -r check"
   }
 }
