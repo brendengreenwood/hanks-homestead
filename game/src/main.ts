@@ -3,7 +3,7 @@ import { Loop } from 'omen/core/Loop';
 import { createRenderer } from 'omen/core/Renderer';
 import { CAMERA_FAR, CAMERA_NEAR, CAMERA_POSITION, CAMERA_ZOOM } from './constants';
 import { createFarmWorld } from './sim/world';
-import { plant, water, harvest } from './sim/actions';
+import { plant, water, feed, harvest } from './sim/actions';
 import { FarmScene } from './scene/FarmScene';
 import { Hud } from './ui/hud';
 
@@ -62,9 +62,11 @@ function refresh(): void {
   hud.render();
 }
 
+hud.onChanged = refresh;
 hud.onEndDay = () => {
-  fw.endDay();
+  const report = fw.endDay();
   refresh();
+  hud.renderDayReport(report);
 };
 
 // Left-click tile picking → active tool action.
@@ -82,7 +84,9 @@ canvas.addEventListener('pointerdown', (ev) => {
       ? plant(fw, tile, hud.selectedCrop)
       : hud.tool === 'water'
         ? water(fw, tile)
-        : harvest(fw, tile);
+        : hud.tool === 'feed'
+          ? feed(fw, tile)
+          : harvest(fw, tile);
   if (!result.ok && result.message) hud.showMessage(result.message);
   refresh();
 });

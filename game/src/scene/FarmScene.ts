@@ -30,6 +30,7 @@ export class FarmScene {
   private readonly cropGroups = new Map<EntityId, { group: THREE.Group; key: string }>();
   private readonly ground: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshLambertMaterial>;
   private readonly raycaster = new THREE.Raycaster();
+  private static readonly soilGeometry = new THREE.BoxGeometry(0.95, 0.1, 0.95);
 
   constructor(
     private readonly scene: THREE.Scene,
@@ -44,17 +45,8 @@ export class FarmScene {
     this.ground.receiveShadow = true;
     scene.add(this.ground);
 
-    // Soil tiles: one pickable box per Tile entity.
-    const soilGeo = new THREE.BoxGeometry(0.95, 0.1, 0.95);
-    for (const e of fw.world.query(fw.components.Tile)) {
-      const t = fw.world.get(e, fw.components.Tile)!;
-      const mesh = new THREE.Mesh(soilGeo, new THREE.MeshLambertMaterial({ color: SOIL_DRY }));
-      mesh.position.set(t.worldX, 0, t.worldZ);
-      mesh.receiveShadow = true;
-      mesh.userData.tile = e;
-      scene.add(mesh);
-      this.tileMeshes.set(e, mesh);
-    }
+    // Soil tiles are created lazily in sync() so rows spawned later (plot
+    // upgrades) get meshes too.
 
     // Perimeter decorations (registry-driven, fallback-safe).
     for (const d of DECORATIONS) {
@@ -115,7 +107,18 @@ export class FarmScene {
     const live = new Set<EntityId>();
     for (const e of world.query(components.Tile)) {
       const t = world.get(e, components.Tile)!;
-      const mesh = this.tileMeshes.get(e)!;
+      let mesh = this.tileMeshes.get(e);
+      if (!mesh) {
+        mesh = new THREE.Mesh(
+          FarmScene.soilGeometry,
+          new THREE.MeshLambertMaterial({ color: SOIL_DRY }),
+        );
+        mesh.position.set(t.worldX, 0, t.worldZ);
+        mesh.receiveShadow = true;
+        mesh.userData.tile = e;
+        this.scene.add(mesh);
+        this.tileMeshes.set(e, mesh);
+      }
       mesh.material.color.copy(t.watered ? SOIL_WET : SOIL_DRY);
 
       const crop = world.get(e, components.Crop);
