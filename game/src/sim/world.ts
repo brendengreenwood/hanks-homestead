@@ -5,6 +5,7 @@ import { CalendarSystem } from './CalendarSystem';
 import { WeatherSystem } from './WeatherSystem';
 import { GrowthSystem } from './GrowthSystem';
 import { SoilSystem } from './SoilSystem';
+import { SprinklerSystem, type SprinklerReport } from './SprinklerSystem';
 import { mulberry32, type Rng } from './rng';
 import { FIELD_OFFSET, FIELD_SIZE, WORLD_SIZE } from './constants';
 
@@ -18,11 +19,20 @@ export interface FarmWorld {
   weather: WeatherSystem;
   growth: GrowthSystem;
   soil: SoilSystem;
+  sprinkler: SprinklerSystem;
   rng: Rng;
   /** Singleton Farm entity (named 'farm'). */
   farm: EntityId;
-  /** Advance one day: calendar tick, weather roll, growth, then soil decay. */
-  endDay(): void;
+  /**
+   * Advance one day (legacy tick order): calendar tick, weather roll,
+   * sprinkler pass, growth, then soil decay.
+   */
+  endDay(): DayReport;
+}
+
+export interface DayReport {
+  scorcher: boolean;
+  sprinkler: SprinklerReport;
 }
 
 /** Legacy re-centering: grid cell → world-space tile center. */
@@ -52,9 +62,43 @@ export function createFarmWorld(seed = 42): FarmWorld {
     plantFood: 5,
     storage: { wheat: 0, carrot: 0, tomato: 0, corn: 0, pumpkin: 0 },
     silos: 1,
+    upgrades: { tractor: 0, sprinkler: 0, silo: 0, plot: 0, hauler: 0 },
+    sprinklerOn: false,
   });
+  const sprinkler = new SprinklerSystem(world, components, farm);
 
-  for (let gy = FIELD_OFFSET; gy < FIELD_OFFSET + FIELD_SIZE; gy++) {
+  spawnFieldRows(world, components, FIELD_OFFSET, FIELD_SIZE);
+
+  return {
+    world,
+    components,
+    calendar,
+    weather,
+    growth,
+    soil,
+    sprinkler,
+    rng,
+    farm,
+    endDay(): DayReport {
+      calendar.advanceDay();
+      const season = calendar.season;
+      const scorcher = weather.rollDay(season);
+      const sprinklerReport = sprinkler.runDay(season);
+      growth.runDay(season);
+      soil.runDay(season, scorcher);
+      return { scorcher, sprinkler: sprinklerReport };
+    },
+  };
+}
+
+/** Spawn `rows` rows of 10-wide farmland starting at grid row `startGy`. */
+export function spawnFieldRows(
+  world: World,
+  components: SimComponents,
+  startGy: number,
+  rows: number,
+): void {
+  for (let gy = startGy; gy < startGy + rows; gy++) {
     for (let gx = FIELD_OFFSET; gx < FIELD_OFFSET + FIELD_SIZE; gx++) {
       const tile = world.spawn();
       world.add(tile, components.Tile, {
@@ -67,22 +111,4 @@ export function createFarmWorld(seed = 42): FarmWorld {
       });
     }
   }
-
-  return {
-    world,
-    components,
-    calendar,
-    weather,
-    growth,
-    soil,
-    rng,
-    farm,
-    endDay(): void {
-      calendar.advanceDay();
-      const season = calendar.season;
-      const scorcher = weather.rollDay(season);
-      growth.runDay(season);
-      soil.runDay(season, scorcher);
-    },
-  };
 }

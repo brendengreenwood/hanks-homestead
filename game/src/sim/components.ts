@@ -1,6 +1,6 @@
 import { World } from 'omen/ecs/World';
 import type { ComponentType } from 'omen/ecs/types';
-import type { CropId } from './constants';
+import type { CropId, UpgradeLevels } from './constants';
 
 /** One farmable cell of the 10×10 field. */
 export interface Tile {
@@ -41,8 +41,12 @@ export interface Farm {
   plantFood: number;
   /** Harvested crops in the silo (legacy `storage`). */
   storage: Record<CropId, number>;
-  /** Silo count driving capacity: BASE_STORAGE + silos × SILO_CAPACITY. */
+  /** Built silo buildings; capacity = BASE_STORAGE + (silos + upgrades.silo) × SILO_CAPACITY. */
   silos: number;
+  /** Farm Supply upgrade levels (legacy `gs.upgrades`). */
+  upgrades: UpgradeLevels;
+  /** Sprinkler master switch (legacy `gs.sprinklerOn`). */
+  sprinklerOn: boolean;
 }
 
 export interface SimComponents {
