@@ -1,4 +1,5 @@
 import type { FarmWorld, DayReport } from '../sim/world';
+import type { SellResult } from '../sim/MarketSystem';
 import {
   CROPS,
   SEASONS,
@@ -31,6 +32,7 @@ export class Hud {
   private readonly status: HTMLDivElement;
   private readonly inventory: HTMLDivElement;
   private readonly shop: HTMLDivElement;
+  private readonly market: HTMLDivElement;
   private readonly sprinkler: HTMLButtonElement;
   private readonly message: HTMLDivElement;
   private messageTimer: number | undefined;
@@ -96,6 +98,15 @@ export class Hud {
     shopButton.addEventListener('click', () => this.shop.classList.add('open'));
     bottom.appendChild(shopButton);
 
+    const marketButton = document.createElement('button');
+    marketButton.dataset.testid = 'open-market';
+    marketButton.textContent = 'Market';
+    marketButton.addEventListener('click', () => {
+      this.market.classList.add('open');
+      this.render();
+    });
+    bottom.appendChild(marketButton);
+
     this.sprinkler = document.createElement('button');
     this.sprinkler.dataset.testid = 'toggle-sprinkler';
     this.sprinkler.addEventListener('click', () => {
@@ -111,6 +122,7 @@ export class Hud {
     bottom.appendChild(endDay);
 
     this.shop = this.make('div', 'panel shop', 'farm-supply');
+    this.market = this.make('div', 'panel shop', 'market');
     this.message = this.make('div', 'msg', 'hud-message');
     this.render();
   }
@@ -146,6 +158,15 @@ export class Hud {
     if (report.sprinkler.cost > 0) messages.push(`Sprinklers watered ${report.sprinkler.watered} tiles for ${report.sprinkler.cost} gold.`);
     if (report.sprinkler.switchedOff) messages.push('Sprinklers switched off: not enough gold.');
     if (report.scorcher) messages.push("Scorcher day: the soil's drying fast.");
+    if (report.spoiled > 0) messages.push(`${report.spoiled} crops spoiled in the barn overnight.`);
+    for (const ev of report.contractEvents) {
+      messages.push(
+        ev.type === 'delivered'
+          ? `Contract delivered: ${ev.contract.qty} ${CROPS[ev.contract.crop].name} for ${ev.amount} gold.`
+          : `Contract defaulted: paid ${-ev.amount} gold penalty.`,
+      );
+    }
+    if (report.seasonChanged) messages.push(`${SEASONS[report.seasonChanged].name} has arrived.`);
     if (messages.length > 0) this.showMessage(messages.join(' '));
   }
 
@@ -194,6 +215,47 @@ export class Hud {
     }
     for (const id of UPGRADE_IDS) {
       this.shop.querySelector<HTMLButtonElement>(`[data-testid="buy-upgrade-${id}"]`)!.addEventListener('click', () => this.transact(() => buyUpgrade(this.fw, id)));
+    }
+
+    this.renderMarket(farm);
+  }
+
+  private sell(action: () => SellResult): void {
+    const result = action();
+    if (result.ok) this.showMessage(`Sold ${result.sold} for ${result.earned} gold.`);
+    else if (result.message) this.showMessage(result.message);
+    this.changed();
+  }
+
+  private renderMarket(farm: { storage: Record<CropId, number> }): void {
+    const market = this.fw.market;
+    const contracts = this.fw.contracts;
+    this.market.innerHTML = `
+      <div class="shop-head"><h2>Grain Elevator</h2><button data-testid="close-market">Close</button></div>
+      <div data-testid="elevator-room">Elevator intake left today: ${market.elevatorRoom()} bu</div>
+      <button data-testid="sell-all">Sell all (best price first)</button>
+      <h3>Today's prices</h3><div class="shop-grid">
+        ${CROP_IDS.map((id) => `<div class="shop-card"><strong>${CROPS[id].icon} ${CROPS[id].name}</strong><div data-testid="price-${id}">${market.prices[id]} gold</div><div>${farm.storage[id]} stored</div><button data-testid="sell-${id}-1">Sell 1</button><button data-testid="sell-${id}-all">Sell all</button></div>`).join('')}
+      </div>
+      <h3>Forward contracts</h3><div class="shop-grid" data-testid="contract-offers">
+        ${contracts.offers.map((o) => `<div class="shop-card"><strong>${CROPS[o.crop].icon} ${o.qty} ${CROPS[o.crop].name}</strong><div>${o.price} gold each · due day ${o.due}</div><button data-testid="accept-contract-${o.id}">Accept</button></div>`).join('')}
+      </div>
+      <h3>Active contracts</h3><div data-testid="active-contracts">
+        ${contracts.active.length === 0 ? '<div>None.</div>' : contracts.active.map((k) => `<div data-testid="contract-${k.id}">${k.qty} ${CROPS[k.crop].name} @ ${k.price} gold · due day ${k.due}</div>`).join('')}
+      </div>`;
+
+    this.market.querySelector<HTMLButtonElement>('[data-testid="close-market"]')!.addEventListener('click', () => this.market.classList.remove('open'));
+    this.market.querySelector<HTMLButtonElement>('[data-testid="sell-all"]')!.addEventListener('click', () => this.sell(() => market.sellAll()));
+    for (const id of CROP_IDS) {
+      this.market.querySelector<HTMLButtonElement>(`[data-testid="sell-${id}-1"]`)!.addEventListener('click', () => this.sell(() => market.sellItem(id, 1)));
+      this.market.querySelector<HTMLButtonElement>(`[data-testid="sell-${id}-all"]`)!.addEventListener('click', () => this.sell(() => market.sellItem(id, farm.storage[id])));
+    }
+    for (const o of contracts.offers) {
+      this.market.querySelector<HTMLButtonElement>(`[data-testid="accept-contract-${o.id}"]`)!.addEventListener('click', () => {
+        contracts.accept(o.id, this.fw.calendar.day);
+        this.showMessage('Contract accepted.');
+        this.changed();
+      });
     }
   }
 }

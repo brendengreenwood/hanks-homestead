@@ -18,101 +18,88 @@ Docs live in three time horizons — full process in `docs/README.md`:
 
 ## Critical Context
 
-The game was migrated from a single-file pure-Canvas 2D renderer to **3D with
-three.js via [@react-three/fiber](https://docs.pmnd.rs/react-three-fiber)** (r3f
-v8 + drei v9, pinned for React 18). The old `Game.jsx` canvas monolith is gone;
-its history is in git.
+The game was **rewritten in TypeScript on the vendored omen ECS engine**
+(`packages/engine/`, forked from om-game). The old React/r3f app is gone
+(D-020); its history is in git. See `docs/systems/rewrite-omen.md` for the
+active architecture.
 
-1. **Game state lives in a ref** - `gameState.current` in `src/Game.jsx`. Mutate
-   it directly, then call `requestRender()` to bump a version counter that
-   re-renders the React tree (3D scene + HUD). Do NOT use `useState` for game data.
-
-2. **3D scene is declarative** - `src/three/FarmScene.jsx` reads `gs` and renders
-   the world (ground, soil tiles, crops, buildings, farmer). It re-renders when
-   the `version` prop changes. Smooth motion (farmer walk/bob) uses `useFrame`,
-   not `requestRender`.
-
-3. **HUD is HTML** - `src/ui/Hud.jsx` (+ `hud.css`) is a normal React/DOM overlay
-   absolutely positioned over the canvas. All buttons/panels/modals live here, not
-   in the 3D scene. The overlay root is `pointer-events: none`; widgets opt back in.
-
-4. **Camera** - orthographic, fixed iso angle, via drei `<OrbitControls>`:
-   wheel = zoom, **right-drag = orbit**, left button is reserved for tile picking.
+1. **Repo is a pnpm workspace** — `packages/engine` (omen, vendored fork) +
+   `game/` (the app). Root scripts delegate: `pnpm dev`, `pnpm build`,
+   `pnpm test:unit`, `pnpm test:e2e`, `pnpm check`.
+2. **Sim is ECS** — components in `game/src/sim/components.ts`, systems in
+   `game/src/sim/*System.ts`, player actions in `game/src/sim/actions.ts`,
+   world factory + `endDay()` pipeline in `game/src/sim/world.ts`. Seeded RNG
+   (`game/src/sim/rng.ts`, `?seed=` URL param) keeps flows deterministic.
+3. **Presentation is raw three.js** through the engine's `Renderer`/`Loop` —
+   `game/src/scene/FarmScene.ts`. No r3f/React.
+4. **HUD is plain DOM** — `game/src/ui/hud.ts`, absolutely positioned over the
+   canvas, every control carries a `data-testid` for playwright.
 
 ## File Map
 
 | File | Responsibility |
 |---|---|
-| `src/Game.jsx` | Orchestrator: `gameState` ref, all actions, input, effects |
-| `src/three/FarmScene.jsx` | r3f `<Canvas>`, lighting, camera, all 3D meshes |
-| `src/ui/Hud.jsx` / `hud.css` | HTML overlay UI |
-| `src/game/constants.js` | CROPS, BUILDINGS, SEASONS, grid sizes, helpers |
-| `src/game/logic.js` | A* pathfinding, farmland/walkable checks, snake-queue |
-| `src/game/assets.js` | **Kenney Nature Kit asset registry** (see below) |
-| `src/hooks/useAudio.js` | `useSound`, `useMusic`, `useAmbience` |
+| `game/src/main.ts` | Boot: renderer, loop, world, scene, HUD wiring |
+| `game/src/sim/constants.ts` | CROPS, SEASONS, UPGRADES, market/contract constants, helpers |
+| `game/src/sim/components.ts` | Tile / Crop / Weather / Farm ECS components |
+| `game/src/sim/world.ts` | `createFarmWorld()`, `endDay()` system pipeline |
+| `game/src/sim/actions.ts` | plant / water / feed / harvest / shop / upgrades / sell |
+| `game/src/sim/*System.ts` | Calendar, Weather, Growth, Soil, Sprinkler, Market, Contract |
+| `game/src/scene/FarmScene.ts` | three.js scene: ground, tiles, crops, decorations |
+| `game/src/ui/hud.ts` | DOM HUD: tools, shop, market, contracts, end-day |
+| `game/src/assets.ts` | **Kenney Nature Kit asset registry** (see below) |
+| `game/tests/*.spec.ts` | Playwright browser gates |
 
 ## Coordinates
 
 Grid is `WORLD_SIZE` (36×36); the farm field is `FIELD_SIZE` (10×10) at
-`FIELD_OFFSET` (13). In 3D each cell is a 1×1 tile; the world is re-centered on the
+`FIELD_OFFSET` (13). Each cell is a 1×1 tile; the world is re-centered on the
 origin: `worldX = gridX - WORLD_SIZE/2 + 0.5`, `worldZ = gridY - WORLD_SIZE/2 + 0.5`
-(see `gx`/`gz` in `FarmScene.jsx`). Tile picking is raycast-based via r3f pointer
-events on each soil tile (`onTilePointerDown` / `onTilePointerEnter` in `Game.jsx`),
-finalized on a global `pointerup`.
+(`gridToWorld()` in `game/src/sim/world.ts`). Tile picking is raycast-based in
+`FarmScene.pick()`.
 
 ## Art Assets — Kenney Nature Kit (CC0)
 
-3D art is the [Nature Kit](https://kenney.nl/assets/nature-kit). A curated subset
-of GLB models is committed in `public/models/nature-kit/` and **enabled**
-(`USE_KENNEY_ASSETS = true` in `src/game/assets.js`). Crops use real growth-stage
-props (`crops_wheatStageA/B`, `crops_cornStageA–D`, `crop_carrot`, `crop_pumpkin`),
-the perimeter is scattered with trees/rocks/bushes (`DECORATIONS`), and the
-farmhouse/silo are procedural low-poly meshes (`Barn`/`Silo` in `FarmScene.jsx`)
-modeled to match the kit's flat-shaded look.
+3D art is the [Nature Kit](https://kenney.nl/assets/nature-kit). The curated GLB
+subset lives in `game/public/models/nature-kit/`. Crops use real growth-stage
+props (`crops_wheatStageA/B`, `crops_cornStageA–D`, `crop_carrot`,
+`crop_pumpkin`), the perimeter is scattered via `DECORATIONS`. Any model that
+fails to load falls back to a procedural placeholder box, so the game never
+crashes on a missing asset.
 
-Any entity whose model is `null` or whose file fails to load falls back to a
-procedural placeholder (`ModelErrorBoundary` + `Suspense` in `FarmScene.jsx`), so
-the game never crashes on a missing asset.
-
-To add more models: drop the GLB into `public/models/nature-kit/`, reference its
-filename in `MODELS` / `DECORATIONS` in `assets.js`, and tune scale via
-`CROP_TRANSFORM` or the decoration's `s`. The Nature Kit has no barn/silo, so
-those are procedural (`Barn`/`Silo` in `FarmScene.jsx`).
-
-The **farmer** is a separate CC0 kit — Kenney Mini Characters
-(`public/models/characters/character-male-a.glb`), a rigged character that
-crossfades `idle`/`walk` and is dressed with a procedural straw hat + pitchfork.
-Tune it via the `FARMER` object in `assets.js` (scale/facing/accessory offsets);
-it falls back to the fully procedural farmer if the model is absent.
+To add more models: drop the GLB into `game/public/models/nature-kit/`,
+reference it in `MODELS` / `DECORATIONS` in `game/src/assets.ts`, and tune
+scale there.
 
 ## How to Add Features
 
-- **New crop**: add to `CROPS` in `constants.js`, add a `crop` entry in
-  `assets.js`. Placeholder geometry in `FarmScene.jsx` `CropPlaceholder` keys off
-  the crop id.
-- **New building**: add to `BUILDINGS`, push into `gs.buildings`, map a model in
-  `assets.js`. `Buildings` in `FarmScene.jsx` renders footprint + label.
-- **New HUD control**: add markup in `Hud.jsx`, style in `hud.css`, wire a
-  callback through the `actions` object built in `Game.jsx`.
-- **New keyboard shortcut**: add a case in the `handleKeyDown` switch in `Game.jsx`.
-- **New sound**: add to the object returned by `useSound` in `useAudio.js`.
+- **New crop**: add to `CROPS` in `constants.ts`, add a model entry in
+  `assets.ts`.
+- **New sim mechanic**: add a component/system in `game/src/sim/`, wire it into
+  the `endDay()` pipeline in `world.ts`, and write a `*.unit.test.ts` beside it.
+- **New HUD control**: add markup in `hud.ts` with a `data-testid`, wire the
+  callback in `main.ts`, and cover it in a playwright spec.
 
 ## What NOT to do
 
-1. Don't use `useState` for game data — keep it in `gameState.current`.
-2. Don't put gameplay UI inside the 3D `<Canvas>` — it goes in the HTML HUD.
-3. Don't call `requestRender()` from `useFrame` — animate transforms directly.
-4. Don't hardcode model paths in the scene — go through `assets.js`.
+1. Don't mutate sim state from the scene or HUD — go through `actions.ts`.
+2. Don't put gameplay UI inside the canvas — it goes in the DOM HUD.
+3. Don't hardcode model paths in the scene — go through `assets.ts`.
+4. Don't use unseeded `Math.random()` in the sim — use the world's RNG.
+5. Don't weaken or skip tests to make gates pass.
 
 ## Running
 
 ```bash
-npm install
-npm run dev      # http://localhost:5173
-npm run build
+pnpm install
+pnpm dev         # http://localhost:5173  (append ?seed=42 for deterministic runs)
+pnpm build
+pnpm test:unit   # vitest (engine + game)
+pnpm check       # tsc --noEmit (engine + game)
+pnpm test:e2e    # playwright browser gates
 ```
 
-## Likely Next Features
+## Out of scope / follow-ups
 
-Save/Load (localStorage of `gs`), weather particles, sprinkler automation,
-day/night lighting, more crops/buildings, a real farmer character model.
+Audio engine and mobile touch HUD from the legacy app are not yet ported.
+Epic 6 futures, loans, insurance, land expansion remain backlog.

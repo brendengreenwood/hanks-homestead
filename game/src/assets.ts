@@ -10,6 +10,18 @@ export const USE_KENNEY_ASSETS = true;
 
 export const ASSET_BASE = '/models/nature-kit/';
 
+// Farmer: Kenney Mini Characters (CC0) base, dressed up with procedural
+// accessories bone-attached so they track every animation. Ported verbatim
+// from legacy assets.js.
+export const FARMER = {
+  model: USE_KENNEY_ASSETS ? '/models/characters/character-male-a.glb' : null,
+  scale: 1.4,
+  y: 0,
+  rot: 0,
+  hat: { bone: 'head', pos: [0, 0.12, 0] as const, scale: 0.6 },
+  pitchfork: { bone: 'arm-right', pos: [0, -0.18, 0.06] as const, scale: 0.5 },
+};
+
 // Crops: ordered growth stages — the LAST entry is the mature model, the
 // ones before it are bucketed across the growing phase.
 export const CROP_MODELS: Record<CropId, string[]> = {

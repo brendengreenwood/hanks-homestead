@@ -1,3 +1,5 @@
+> ARCHIVED 2026-08-16 - canvas-era instruction file; superseded by root CLAUDE.md after the omen rewrite (D-020)
+
 # CLAUDE.md
 
 ## Quick Start

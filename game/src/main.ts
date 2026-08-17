@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { Loop } from 'omen/core/Loop';
 import { createRenderer } from 'omen/core/Renderer';
-import { CAMERA_FAR, CAMERA_NEAR, CAMERA_POSITION, CAMERA_ZOOM } from './constants';
+import { CAMERA_FAR, CAMERA_NEAR, CAMERA_POSITION, CAMERA_ZOOM, gridToWorld } from './constants';
 import { createFarmWorld } from './sim/world';
 import { plant, water, feed, harvest } from './sim/actions';
 import { FarmScene } from './scene/FarmScene';
@@ -11,6 +11,8 @@ declare global {
   interface Window {
     __THREE_GAME_DIAGNOSTICS__?: {
       frame: number;
+      /** Grid → CSS-pixel canvas coords, so proof flows can aim real clicks. */
+      worldToScreen?: (gridX: number, gridY: number) => { x: number; y: number };
     };
   }
 }
@@ -26,6 +28,19 @@ const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, CAMERA_NEAR, CAMERA_FA
 camera.position.set(...CAMERA_POSITION);
 camera.lookAt(0, 0, 0);
 
+// Wheel zoom — legacy OrbitControls bounds (minZoom 12, maxZoom 70, base 26).
+let zoom = CAMERA_ZOOM;
+let zoomDirty = false;
+canvas.addEventListener(
+  'wheel',
+  (ev) => {
+    ev.preventDefault();
+    zoom = Math.min(70, Math.max(12, zoom * Math.exp(-ev.deltaY * 0.0015)));
+    zoomDirty = true;
+  },
+  { passive: false },
+);
+
 function resize(): boolean {
   const width = Math.max(1, Math.floor(canvas.clientWidth));
   const height = Math.max(1, Math.floor(canvas.clientHeight));
@@ -35,10 +50,13 @@ function resize(): boolean {
   if (needsResize) {
     renderer.setPixelRatio(dpr);
     renderer.setSize(width, height, false);
-    camera.left = -width / CAMERA_ZOOM / 2;
-    camera.right = width / CAMERA_ZOOM / 2;
-    camera.top = height / CAMERA_ZOOM / 2;
-    camera.bottom = -height / CAMERA_ZOOM / 2;
+  }
+  if (needsResize || zoomDirty) {
+    zoomDirty = false;
+    camera.left = -width / zoom / 2;
+    camera.right = width / zoom / 2;
+    camera.top = height / zoom / 2;
+    camera.bottom = -height / zoom / 2;
     camera.updateProjectionMatrix();
   }
   return needsResize;
@@ -79,6 +97,7 @@ canvas.addEventListener('pointerdown', (ev) => {
   );
   const tile = farmScene.pickTile(ndc, camera);
   if (tile === null) return;
+  farmScene.notifyAction(tile); // Hank walks over + interact gesture
   const result =
     hud.tool === 'plant'
       ? plant(fw, tile, hud.selectedCrop)
@@ -91,12 +110,24 @@ canvas.addEventListener('pointerdown', (ev) => {
   refresh();
 });
 
-const diagnostics = { frame: 0 };
+const diagnostics = {
+  frame: 0,
+  worldToScreen(gridX: number, gridY: number): { x: number; y: number } {
+    const [wx, wz] = gridToWorld(gridX, gridY);
+    const p = new THREE.Vector3(wx, 0, wz).project(camera);
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: rect.left + ((p.x + 1) / 2) * rect.width,
+      y: rect.top + ((1 - p.y) / 2) * rect.height,
+    };
+  },
+};
 window.__THREE_GAME_DIAGNOSTICS__ = diagnostics;
 
 const loop = new Loop(
-  () => {
+  (dt) => {
     resize();
+    farmScene.update(dt);
   },
   () => {
     renderer.render(scene, camera);

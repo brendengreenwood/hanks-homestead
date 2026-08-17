@@ -6,8 +6,10 @@ import { WeatherSystem } from './WeatherSystem';
 import { GrowthSystem } from './GrowthSystem';
 import { SoilSystem } from './SoilSystem';
 import { SprinklerSystem, type SprinklerReport } from './SprinklerSystem';
+import { MarketSystem } from './MarketSystem';
+import { ContractSystem, type ContractEvent } from './ContractSystem';
 import { mulberry32, type Rng } from './rng';
-import { FIELD_OFFSET, FIELD_SIZE, WORLD_SIZE } from './constants';
+import { FIELD_OFFSET, FIELD_SIZE, WORLD_SIZE, type SeasonId } from './constants';
 
 export const FARM_ENTITY_NAME = 'farm';
 const STARTING_GOLD = 200; // legacy Game.jsx initial state
@@ -20,6 +22,8 @@ export interface FarmWorld {
   growth: GrowthSystem;
   soil: SoilSystem;
   sprinkler: SprinklerSystem;
+  market: MarketSystem;
+  contracts: ContractSystem;
   rng: Rng;
   /** Singleton Farm entity (named 'farm'). */
   farm: EntityId;
@@ -33,6 +37,12 @@ export interface FarmWorld {
 export interface DayReport {
   scorcher: boolean;
   sprinkler: SprinklerReport;
+  /** Crops lost to spoilage overnight. */
+  spoiled: number;
+  /** Contracts settled today (deliveries and defaults). */
+  contractEvents: ContractEvent[];
+  /** Set when the day tick crossed into a new season. */
+  seasonChanged: SeasonId | null;
 }
 
 /** Legacy re-centering: grid cell → world-space tile center. */
@@ -66,8 +76,11 @@ export function createFarmWorld(seed = 42): FarmWorld {
     sprinklerOn: false,
   });
   const sprinkler = new SprinklerSystem(world, components, farm);
+  const market = new MarketSystem(world, components, farm, rng);
+  const contracts = new ContractSystem(world, components, farm, rng);
 
   spawnFieldRows(world, components, FIELD_OFFSET, FIELD_SIZE);
+  contracts.ensureOffers(calendar.day);
 
   return {
     world,
@@ -77,18 +90,44 @@ export function createFarmWorld(seed = 42): FarmWorld {
     growth,
     soil,
     sprinkler,
+    market,
+    contracts,
     rng,
     farm,
     endDay(): DayReport {
+      const prevSeason = calendar.season;
       calendar.advanceDay();
       const season = calendar.season;
+      // Legacy advanceDay order: soldToday reset, scorcher roll, sprinklers,
+      // growth, market tick, spoilage, contract settlement.
+      market.startDay();
       const scorcher = weather.rollDay(season);
       const sprinklerReport = sprinkler.runDay(season);
       growth.runDay(season);
       soil.runDay(season, scorcher);
-      return { scorcher, sprinkler: sprinklerReport };
+      market.tickDay(calendar.day);
+      const spoiled = market.spoilTick();
+      const contractEvents = contracts.tick(calendar.day);
+      const seasonChanged = season !== prevSeason ? season : null;
+      if (seasonChanged) {
+        // Fresh offers each season (legacy: contractOffers = [] on transition).
+        contracts.refreshOffers(calendar.day);
+        // Winter → spring: the field is re-tilled (legacy `gs.grid = makeGrid()`).
+        if (prevSeason === 'winter' && season === 'spring') resetField(world, components);
+      }
+      return { scorcher, sprinkler: sprinklerReport, spoiled, contractEvents, seasonChanged };
     },
   };
+}
+
+/** Winter → spring re-till: clear all crops and reset soil (legacy `makeGrid()`). */
+export function resetField(world: World, components: SimComponents): void {
+  for (const tile of world.query(components.Tile)) {
+    if (world.has(tile, components.Crop)) world.remove(tile, components.Crop);
+    const t = world.get(tile, components.Tile)!;
+    t.moisture = 0;
+    t.watered = false;
+  }
 }
 
 /** Spawn `rows` rows of 10-wide farmland starting at grid row `startGy`. */
