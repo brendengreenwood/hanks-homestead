@@ -40,6 +40,8 @@ describe('createFarmWorld', () => {
       plantFood: 5,
       storage: { wheat: 0, carrot: 0, tomato: 0, corn: 0, pumpkin: 0 },
       silos: 1,
+      upgrades: { tractor: 0, sprinkler: 0, silo: 0, plot: 0, hauler: 0 },
+      sprinklerOn: false,
     });
   });
 

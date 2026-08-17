@@ -54,9 +54,26 @@
   controls carry `data-testid`s so playwright proof flows drive the exact
   controls a human clicks.
 
+## Automation era (segment 4)
+
+- `UPGRADES` table ported verbatim: tractor / sprinkler / silo / plot /
+  hauler with baseCost × growth^level pricing and max levels; helpers
+  `upgradeCost`, `fieldHeight`, `speedFactor`, `elevatorIntake`.
+- `Farm` gains `upgrades` record + `sprinklerOn`; buying the plot upgrade
+  spawns new tile rows (`ROWS_PER_PLOT` 2); silo upgrades raise capacity.
+- `SprinklerSystem` (runs before growth in `endDay`, matching legacy order):
+  summer-only, waters thirsty non-mature crops, charges
+  `SPRINKLER_COST_PER_TILE` (1 gold) per tile, switches itself off when
+  gold runs out. `endDay()` returns a `DayReport` (sprinkler OpEx,
+  scorcher) rendered as HUD messages.
+- Actions: **feed** (summer-only, consumes plant food, doubles yield),
+  **buySeeds**/**buyFeed**, **buyUpgrade**, **toggleSprinkler**.
+- HUD: feed tool, Farm Supply modal (seeds / plant food / upgrades),
+  sprinkler ON/OFF toggle (visible once owned), day-report messages.
+- FarmScene creates soil meshes lazily so plot-expansion rows render/pick.
+
 ## Not yet ported (later segments)
 
-- Automation era: sprinklers, feed action, CapEx/OpEx (segment 4).
 - Market era: dynamic prices, elevator intake cap, selling, spoilage,
   forward contracts (segment 5).
 - Out of rewrite parity: audio engine, mobile touch HUD, farmer avatar +

@@ -105,6 +105,42 @@ export const ELEVATOR_INTAKE_PER_LEVEL = 15;
 export const ROWS_PER_PLOT = 2; // extra farmland rows per plot purchased
 export const SPRINKLER_COST_PER_TILE = 1;
 
+export type UpgradeId = 'tractor' | 'sprinkler' | 'silo' | 'plot' | 'hauler';
+
+export interface UpgradeDef {
+  name: string;
+  icon: string;
+  max: number;
+  baseCost: number;
+  growth: number;
+  desc: string;
+}
+
+export const UPGRADES: Record<UpgradeId, UpgradeDef> = {
+  tractor: { name: 'Tractor', icon: '🚜', max: 3, baseCost: 300, growth: 1.7, desc: 'Hank works faster' },
+  sprinkler: { name: 'Sprinklers', icon: '💧', max: 1, baseCost: 500, growth: 2, desc: 'Auto-waters thirsty crops — scorcher insurance (small daily cost)' },
+  silo: { name: 'Silo', icon: '🏗️', max: 6, baseCost: 220, growth: 1.55, desc: `+${SILO_CAPACITY} storage` },
+  plot: { name: 'Field Plot', icon: '🟫', max: 6, baseCost: 180, growth: 1.5, desc: `+${ROWS_PER_PLOT} rows of farmland` },
+  hauler: { name: 'Grain Hauler', icon: '🚛', max: 4, baseCost: 260, growth: 1.6, desc: `Sell +${ELEVATOR_INTAKE_PER_LEVEL} bushels/day at the elevator` },
+};
+
+export const UPGRADE_IDS = Object.keys(UPGRADES) as UpgradeId[];
+
+export type UpgradeLevels = Record<UpgradeId, number>;
+
+export const upgradeCost = (key: UpgradeId, level: number): number =>
+  Math.round(UPGRADES[key].baseCost * Math.pow(UPGRADES[key].growth, level));
+
+export const elevatorIntake = (upgrades: UpgradeLevels): number =>
+  ELEVATOR_BASE_INTAKE + upgrades.hauler * ELEVATOR_INTAKE_PER_LEVEL;
+
+export const fieldHeight = (upgrades: UpgradeLevels): number =>
+  FIELD_SIZE + upgrades.plot * ROWS_PER_PLOT;
+
+// Faster action/step timing as the tractor levels up.
+export const speedFactor = (upgrades: UpgradeLevels): number =>
+  1 + upgrades.tractor * 0.6;
+
 // ---- Forward contracts -----------------------------------------------------
 export const CONTRACT_SLOTS = 3;
 export const CONTRACT_PENALTY = 0.25; // fraction of contract value forfeited on default

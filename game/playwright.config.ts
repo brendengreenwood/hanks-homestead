@@ -3,6 +3,8 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './tests',
   timeout: 30_000,
+  // Serial: parallel headless WebGL contexts stall the GPU on this machine.
+  workers: 1,
   expect: {
     timeout: 5_000,
   },
