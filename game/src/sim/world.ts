@@ -44,7 +44,15 @@ export function createFarmWorld(seed = 42): FarmWorld {
 
   const farm = world.spawn();
   world.setName(farm, FARM_ENTITY_NAME);
-  world.add(farm, components.Farm, { gold: STARTING_GOLD });
+  // Legacy Game.jsx initial state: 10 seeds per crop, 5 plant food, one silo
+  // building (capacity 40 + 60 = 100), empty storage.
+  world.add(farm, components.Farm, {
+    gold: STARTING_GOLD,
+    seeds: { wheat: 10, carrot: 10, tomato: 10, corn: 10, pumpkin: 10 },
+    plantFood: 5,
+    storage: { wheat: 0, carrot: 0, tomato: 0, corn: 0, pumpkin: 0 },
+    silos: 1,
+  });
 
   for (let gy = FIELD_OFFSET; gy < FIELD_OFFSET + FIELD_SIZE; gy++) {
     for (let gx = FIELD_OFFSET; gx < FIELD_OFFSET + FIELD_SIZE; gx++) {

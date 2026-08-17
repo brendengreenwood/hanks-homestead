@@ -1,13 +1,11 @@
 import * as THREE from 'three';
 import { Loop } from 'omen/core/Loop';
 import { createRenderer } from 'omen/core/Renderer';
-import {
-  CAMERA_FAR,
-  CAMERA_NEAR,
-  CAMERA_POSITION,
-  CAMERA_ZOOM,
-  WORLD_SIZE,
-} from './constants';
+import { CAMERA_FAR, CAMERA_NEAR, CAMERA_POSITION, CAMERA_ZOOM } from './constants';
+import { createFarmWorld } from './sim/world';
+import { plant, water, harvest } from './sim/actions';
+import { FarmScene } from './scene/FarmScene';
+import { Hud } from './ui/hud';
 
 declare global {
   interface Window {
@@ -21,7 +19,6 @@ const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 const renderer = createRenderer(canvas);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color('#87b5dd'); // sky
 
 // Orthographic iso camera matching the legacy drei rig: drei's `zoom` maps
 // viewport pixels to world units, so frustum extents are size/zoom.
@@ -54,14 +51,41 @@ sun.position.set(18, 30, 12);
 sun.castShadow = true;
 scene.add(sun);
 
-// Flat ground plane sized to the world grid — no game logic yet.
-const ground = new THREE.Mesh(
-  new THREE.PlaneGeometry(WORLD_SIZE, WORLD_SIZE),
-  new THREE.MeshLambertMaterial({ color: '#6fae4e' }),
-);
-ground.rotation.x = -Math.PI / 2;
-ground.receiveShadow = true;
-scene.add(ground);
+// Sim + presentation. `?seed=` pins the RNG for reproducible proof flows.
+const seedParam = new URLSearchParams(window.location.search).get('seed');
+const fw = createFarmWorld(seedParam ? Number(seedParam) : 42);
+const farmScene = new FarmScene(scene, fw);
+const hud = new Hud(fw);
+
+function refresh(): void {
+  farmScene.sync();
+  hud.render();
+}
+
+hud.onEndDay = () => {
+  fw.endDay();
+  refresh();
+};
+
+// Left-click tile picking → active tool action.
+canvas.addEventListener('pointerdown', (ev) => {
+  if (ev.button !== 0) return;
+  const rect = canvas.getBoundingClientRect();
+  const ndc = new THREE.Vector2(
+    ((ev.clientX - rect.left) / rect.width) * 2 - 1,
+    -((ev.clientY - rect.top) / rect.height) * 2 + 1,
+  );
+  const tile = farmScene.pickTile(ndc, camera);
+  if (tile === null) return;
+  const result =
+    hud.tool === 'plant'
+      ? plant(fw, tile, hud.selectedCrop)
+      : hud.tool === 'water'
+        ? water(fw, tile)
+        : harvest(fw, tile);
+  if (!result.ok && result.message) hud.showMessage(result.message);
+  refresh();
+});
 
 const diagnostics = { frame: 0 };
 window.__THREE_GAME_DIAGNOSTICS__ = diagnostics;
